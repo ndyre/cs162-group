@@ -23,8 +23,10 @@
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static thread_func start_pthread NO_RETURN;
-static bool load(const char* file_name, void (**eip)(void), void** esp);
+static bool load(const char* file_name, char* args, void (**eip)(void), void** esp);
 bool setup_thread(void (**eip)(void), void** esp);
+void push_arguments(const char* args, void** esp);
+int calculate_alignment(int offset, int argc);
 
 /* Initializes user programs in the system by ensuring the main
    thread has a minimal PCB so that it can execute and wait for
@@ -63,6 +65,7 @@ pid_t process_execute(const char* file_name) {
   strlcpy(fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
+  file_name = strtok_r(file_name, " ", &file_name);
   tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
@@ -72,7 +75,13 @@ pid_t process_execute(const char* file_name) {
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process(void* file_name_) {
-  char* file_name = (char*)file_name_;
+  // Copy since strtok_r changes string
+  char* tmp = malloc(strlen((char*)file_name_) + 1);
+  strlcpy(tmp, (char*)file_name_, strlen((char*) file_name_) + 1); 
+  
+  char* file_name = strtok_r(tmp, " ", &tmp);
+  char* args = (char*) file_name_;
+
   struct thread* t = thread_current();
   struct intr_frame if_;
   bool success, pcb_success;
@@ -99,7 +108,7 @@ static void start_process(void* file_name_) {
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
-    success = load(file_name, &if_.eip, &if_.esp);
+    success = load(file_name, args, &if_.eip, &if_.esp);
   }
 
   /* Handle failure with succesful PCB malloc. Must free the PCB */
@@ -113,12 +122,14 @@ static void start_process(void* file_name_) {
   }
 
   /* Clean up. Exit on failure or jump to userspace */
-  palloc_free_page(file_name);
+  palloc_free_page(args);
   if (!success) {
+    printf("%s\n", "Failed to free page");
     sema_up(&temporary);
     thread_exit();
   }
 
+  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -259,7 +270,7 @@ struct Elf32_Phdr {
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack(void** esp);
+static bool setup_stack(const char* file_name, void** esp);
 static bool validate_segment(const struct Elf32_Phdr*, struct file*);
 static bool load_segment(struct file* file, off_t ofs, uint8_t* upage, uint32_t read_bytes,
                          uint32_t zero_bytes, bool writable);
@@ -268,7 +279,7 @@ static bool load_segment(struct file* file, off_t ofs, uint8_t* upage, uint32_t 
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
-bool load(const char* file_name, void (**eip)(void), void** esp) {
+bool load(const char* file_name, char* args, void (**eip)(void), void** esp) {
   struct thread* t = thread_current();
   struct Elf32_Ehdr ehdr;
   struct file* file = NULL;
@@ -348,7 +359,7 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
   }
 
   /* Set up stack. */
-  if (!setup_stack(esp))
+  if (!setup_stack(args, esp))
     goto done;
 
   /* Start address. */
@@ -465,20 +476,76 @@ static bool load_segment(struct file* file, off_t ofs, uint8_t* upage, uint32_t 
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool setup_stack(void** esp) {
+static bool setup_stack(const char* args, void** esp) {
   uint8_t* kpage;
   bool success = false;
 
   kpage = palloc_get_page(PAL_USER | PAL_ZERO);
   if (kpage != NULL) {
     success = install_page(((uint8_t*)PHYS_BASE) - PGSIZE, kpage, true);
-    if (success)
+    if (success) {
       *esp = PHYS_BASE;
+      push_arguments(args, esp);
+    }
     else
       palloc_free_page(kpage);
   }
   return success;
 }
+
+void push_arguments(const char* args, void** esp) {
+  void* esp_original = *esp;
+  char* arg;
+  char* rest = args;
+  char* argv[64]; // User stack pointers
+
+  int argc = 0;
+  while(arg = strtok_r(rest, " ", &rest)) {
+    *esp -= strlen(arg) + 1;
+    memcpy(*esp, (void*)arg, strlen(arg) + 1);
+    argv[argc] = (char*)*esp;
+    argc++;
+  }
+
+  // Stack align
+  int stack_align = calculate_alignment(esp_original - *esp, argc);
+  *esp -= stack_align;
+  memset(*esp, 0, stack_align);
+
+  // Push null pointer at argv[4]
+  *esp -= 4;
+  memset(*esp, 0, 4);
+  
+  // Push arg addresses
+  for (int i = argc - 1; i >= 0; i--) {
+    *esp -= 4;
+    *(char**)*esp = argv[i];
+  }
+
+  // Push argv (address of arg[0])
+  void* esp_tmp = *esp;
+  *esp -= 4;
+  *(char**)*esp = esp_tmp;
+
+  // Push argc
+  *esp -= 4;
+  *(int*)*esp = argc;
+
+  // Fake return
+  *esp-= 4;
+  *(char**)*esp = 0;
+}
+
+int calculate_alignment(int offset, int argc) {
+  int x = offset + ((argc + 3) * 4);
+  if (x % 16 == 0) {
+    return 0;
+  }
+  int aligned = ((x - 1)|15) + 1;
+  return aligned - x;
+}
+
+
 
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
