@@ -100,6 +100,9 @@ static void start_process(void* file_name_) {
     // Continue initializing the PCB as normal
     t->pcb->main_thread = t;
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
+    
+    // If process exits due to a user exception this is the status that will be printed
+    t->pcb->status = -1;
   }
 
   /* Initialize interrupt frame and load executable. */
@@ -155,10 +158,12 @@ int process_wait(pid_t child_pid UNUSED) {
 }
 
 /* Free the current process's resources. */
-void process_exit(void) {
+void process_exit() {
   struct thread* cur = thread_current();
   uint32_t* pd;
 
+  printf("%s: exit(%d)\n", cur->pcb->process_name, cur->pcb->status);
+  
   /* If this thread does not have a PCB, don't worry */
   if (cur->pcb == NULL) {
     thread_exit();

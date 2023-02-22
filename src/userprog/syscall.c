@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/pte.h"
 #include "userprog/process.h"
 
 static void syscall_handler(struct intr_frame*);
@@ -54,7 +55,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     case SYS_EXIT:
       //TODO
       f->eax = args[1];
-      printf("%s: exit(%d)\n", thread_current()->pcb->process_name, args[1]);
       sys_exit(args[1]);
       break;
     case SYS_FILESIZE:
@@ -105,8 +105,10 @@ pid_t sys_exec(const char *cmd_line) {
   // TODO
 }
 
-void sys_exit(int status UNUSED) {
+void sys_exit(int status) {
   // TODO
+  struct thread* t = thread_current();
+  t->pcb->status = status;
   process_exit();
 }
 
@@ -159,4 +161,19 @@ int sys_write(int fd, const char *buffer, unsigned size) {
 
 void check_user_addresses(uint32_t* uaddr, size_t num_bytes) {
   // TODO
+  if (uaddr == NULL) {
+    sys_exit(-1);
+  }
+  // Cast to char* so ++ operator increments ptr by one byte
+  char* uaddr_cpy = (char*) uaddr;
+  for (size_t i = 0; i < num_bytes; i++) {
+    if (!is_user_vaddr((uint32_t* )uaddr_cpy)) {
+      sys_exit(-1);
+    }
+    else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*) uaddr_cpy) == NULL) {
+      sys_exit(-1);
+    }
+    uaddr_cpy++;
+  }
+
 }
