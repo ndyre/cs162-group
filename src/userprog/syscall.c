@@ -104,7 +104,7 @@ bool sysc_create(const char *file, unsigned initial_size) {
 }
 pid_t sys_exec(const char *cmd_line) {
   //Check args!
-  // check_user_addresses(cmd_line, strlen(*cmd_line)+1);
+  check_user_addresses(cmd_line, strlen(cmd_line)+1); //How to check num. bytes?!
   process_execute(cmd_line);
   // TODO
 }
