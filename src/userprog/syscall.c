@@ -40,7 +40,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
    */
 
   // printf("System call number: %d\n", args[0]);
-  
+  // check_user_addresses(args, 4);
   switch(args[0])
   {
     case SYS_CLOSE:
