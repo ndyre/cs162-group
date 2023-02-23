@@ -50,6 +50,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       // TODO
       break;
     case SYS_EXEC:
+      f->eax = sys_exec(args[1]);
       // TODO
       break;
     case SYS_EXIT:
@@ -102,6 +103,9 @@ bool sysc_create(const char *file, unsigned initial_size) {
   // TODO
 }
 pid_t sys_exec(const char *cmd_line) {
+  //Check args!
+  // check_user_addresses(cmd_line, strlen(*cmd_line)+1);
+  process_execute(cmd_line);
   // TODO
 }
 

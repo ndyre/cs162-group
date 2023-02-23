@@ -48,45 +48,9 @@ void userprog_init(void) {
   ASSERT(success);
 }
 
-/* Starts a new thread running a user program loaded from
-   FILENAME.  The new thread may be scheduled (and may even exit)
-   before process_execute() returns.  Returns the new process's
-   process id, or TID_ERROR if the thread cannot be created. */
-pid_t process_execute(const char* file_name) {
-  char* fn_copy;
-  tid_t tid;
-
-  sema_init(&temporary, 0);
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page(0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy(fn_copy, file_name, PGSIZE);
-
-  /* Create a new thread to execute FILE_NAME. */
-  file_name = strtok_r(file_name, " ", &file_name);
-  /* struct * pcb = create_child_pcb() */
-  /* parent calls sema_down */
-  struct process* child_pcb = create_child_pcb();
-  if (child_pcb == NULL) {
-    printf("ERROR CREATING CHILD PCB ");
-    free(child_pcb);
-    return -1;
-  }
-  struct start_process_struct* start_process_args = (struct start_process_struct*) malloc(sizeof(struct start_process_struct));
-  start_process_args->pcb = child_pcb;
-  start_process_args->fn_copy = fn_copy;
-  sema_down(&(start_process_args->pcb->wait_status));
-  tid = thread_create(file_name, PRI_DEFAULT, start_process, (void *) start_process_args);
-  if (tid == TID_ERROR)
-    palloc_free_page(fn_copy);
-  return tid;
-}
-
 struct process* create_child_pcb() {
   bool success, pcb_success;
-  struct process* new_pcb = malloc(sizeof(struct process));
+  struct process* new_pcb = (struct process*) malloc(sizeof(struct process));
   success = pcb_success = new_pcb != NULL;
   if (success) {
     struct thread* parent = thread_current();
@@ -108,6 +72,44 @@ struct process* create_child_pcb() {
   return new_pcb;
 }
 
+/* Starts a new thread running a user program loaded from
+   FILENAME.  The new thread may be scheduled (and may even exit)
+   before process_execute() returns.  Returns the new process's
+   process id, or TID_ERROR if the thread cannot be created. */
+pid_t process_execute(const char* file_name) {
+  char* fn_copy;
+  tid_t tid;
+  // struct process* child_pcb;
+
+  sema_init(&temporary, 0);
+  /* Make a copy of FILE_NAME.
+     Otherwise there's a race between the caller and load(). */
+  fn_copy = palloc_get_page(0);
+  if (fn_copy == NULL)
+    return TID_ERROR;
+  strlcpy(fn_copy, file_name, PGSIZE);
+
+  /* Create a new thread to execute FILE_NAME. */
+  file_name = strtok_r(file_name, " ", &file_name);
+  // struct * pcb = create_child_pcb()
+  /* parent calls sema_down */
+  struct process* child_pcb = create_child_pcb();
+  // if (child_pcb == NULL) {
+  //   printf("ERROR CREATING CHILD PCB ");
+  //   free(child_pcb);
+  //   free(fn_copy);
+  //   return -1;
+  // }
+  struct start_process_struct* start_process_args = (struct start_process_struct*) malloc(sizeof(struct start_process_struct));
+  start_process_args->pcb = child_pcb;
+  start_process_args->fn_copy = fn_copy;
+  tid = thread_create(file_name, PRI_DEFAULT, start_process, (void *) start_process_args);
+  sema_down(&(start_process_args->pcb->wait_status));
+  if (tid == TID_ERROR)
+    palloc_free_page(fn_copy);
+  return tid;
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process(void* start_process_args) {
@@ -124,11 +126,11 @@ static void start_process(void* start_process_args) {
   struct thread* t = thread_current();
   struct intr_frame if_;
   bool success, pcb_success;
-  success = pcb_success = true;
+  // success = pcb_success = true;
 
   /* Allocate process control block */
   // struct process* new_pcb = malloc(sizeof(struct process)); COMMENTED OUT
-  // success = pcb_success = new_pcb != NULL; COMMENTED OUT
+  success = pcb_success = pcb != NULL;
 
   /* Initialize process control block */
   
@@ -136,12 +138,12 @@ static void start_process(void* start_process_args) {
   // if (success) {
   //   // Ensure that timer_interrupt() -> schedule() -> process_activate()
   //   // does not try to activate our uninitialized pagedir
-  //   new_pcb->pagedir = NULL;
-  //   t->pcb = new_pcb;
+    pcb->pagedir = NULL;
+    t->pcb = pcb;
 
   //   // Continue initializing the PCB as normal
-  //   t->pcb->main_thread = t;
-  //   strlcpy(t->pcb->process_name, t->name, sizeof t->name);
+    t->pcb->main_thread = t;
+    strlcpy(t->pcb->process_name, t->name, sizeof t->name);
     
   //   // If process exits due to a user exception this is the status that will be printed
   //   t->pcb->status = -1;
@@ -154,6 +156,8 @@ static void start_process(void* start_process_args) {
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
     success = load(file_name, args, &if_.eip, &if_.esp);
+    sema_up(&(pcb->wait_status));
+
   }
 
   /* Handle failure with succesful PCB malloc. Must free the PCB */
@@ -170,7 +174,7 @@ static void start_process(void* start_process_args) {
   palloc_free_page(args);
   if (!success) {
     printf("%s\n", "Failed to free page");
-    sema_up(&temporary);
+    // sema_up(&temporary);
     thread_exit();
   }
 
