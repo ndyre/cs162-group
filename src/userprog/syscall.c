@@ -25,7 +25,7 @@ int sys_wait(pid_t pid);
 int sys_write(int fd, const char *buffer, unsigned size);
 
 // User pointer validation
-void check_user_addresses(uint32_t* uaddr, size_t num_bytes);
+void check_user_addresses(uint32_t* uaddr, int num_bytes);
 
 
 void syscall_init(void) { intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); }
@@ -50,6 +50,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       // TODO
       break;
     case SYS_EXEC:
+      // check_cmd_line_length(args[1]);
       f->eax = sys_exec(args[1]);
       // TODO
       break;
@@ -93,8 +94,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   }
 }
 
-
-
 void sys_close(int fd) {
   // TODO
 }
@@ -103,12 +102,32 @@ bool sysc_create(const char *file, unsigned initial_size) {
   // TODO
 }
 pid_t sys_exec(const char *cmd_line) {
-  //Check args!
-  check_user_addresses(cmd_line, strlen(cmd_line)+1); //How to check num. bytes?!
-  process_execute(cmd_line);
+  int numBytes = check_cmd_line_length(cmd_line);
+  check_user_addresses(cmd_line,numBytes); 
+  pid_t pid = process_execute(cmd_line);
+  return pid;
   // TODO
 }
 
+int check_cmd_line_length(const char *cmd_line) {
+  char* arg;
+  int numArgs = 0;
+  if (!is_user_vaddr((uint32_t* )cmd_line)) {
+    sys_exit(-1);
+  }
+  else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*) cmd_line) == NULL) {
+      sys_exit(-1);
+  }
+  char* tmp = malloc(strlen((char*)cmd_line) + 1);
+  strlcpy(tmp, (char*)cmd_line, strlen(cmd_line) + 1); 
+  char* tmp_ptr; 
+  while(arg = strtok_r(tmp, " ", &tmp)) {
+    numArgs += 1;
+  }
+  int numBytes = numArgs * 4;
+  return numBytes;
+
+}
 void sys_exit(int status) {
   // TODO
   struct thread* t = thread_current();
@@ -163,7 +182,7 @@ int sys_write(int fd, const char *buffer, unsigned size) {
   return 0;
 }
 
-void check_user_addresses(uint32_t* uaddr, size_t num_bytes) {
+void check_user_addresses(uint32_t* uaddr, int num_bytes) {
   // TODO
   if (uaddr == NULL) {
     sys_exit(-1);
@@ -179,5 +198,22 @@ void check_user_addresses(uint32_t* uaddr, size_t num_bytes) {
     }
     uaddr_cpy++;
   }
+
+// void check_user_addresses(uint32_t* uaddr, size_t num_bytes) {
+//   // TODO
+//   if (uaddr == NULL) {
+//     sys_exit(-1);
+//   }
+//   // Cast to char* so ++ operator increments ptr by one byte
+//   char* uaddr_cpy = (char*) uaddr;
+//   for (size_t i = 0; i < num_bytes; i++) {
+//     if (!is_user_vaddr((uint32_t* )uaddr_cpy)) {
+//       sys_exit(-1);
+//     }
+//     else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*) uaddr_cpy) == NULL) {
+//       sys_exit(-1);
+//     }
+//     uaddr_cpy++;
+//   }
 
 }
