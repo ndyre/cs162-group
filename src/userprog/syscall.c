@@ -28,6 +28,7 @@ unsigned sys_tell(int fd);
 
 // User pointer validation
 void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes);
+void check_arg_pointers(const char *arg_pointer);
 
 
 void syscall_init(void) { 
@@ -56,11 +57,15 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
       case SYS_EXIT:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
         f->eax = args[1];
         sys_exit(args[1]);
         break;
       case SYS_EXEC:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
+        check_arg_pointers(args[1]);
+        f->eax = sys_exec(args[1]);
         break;
       case SYS_WAIT:
         //TODO
@@ -75,13 +80,12 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_CREATE:
         //TODO
         check_user_stack_addresses(args + 1, 8);
-        check_user_stack_addresses((uint32_t* ) args[1], 1);
+        check_arg_pointers(args[1]);
         f->eax = sys_create((const char*) args[1], args[2]);
         break;
       case SYS_REMOVE:
         //TODO
         check_user_stack_addresses(args + 1, 4);
-        check_user_stack_addresses((uint32_t*) args[1], 1);
         f->eax = sys_remove((const char*) args[1]);
         break; 
       case SYS_OPEN:
@@ -95,6 +99,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
       case SYS_WRITE:
         //TODO
+        check_user_stack_addresses(args + 1, 12);
         f->eax = sys_write(args[1], (const char*)args[2], args[3]);
         break;
       case SYS_SEEK:
@@ -108,68 +113,13 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
       case SYS_PRACTICE:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
         f->eax = sys_practice(args[1]);
         break; 
     }
     lock_release(&fileop_lock);
   }
 }
-
-//   switch(args[0])
-//   {
-//     case SYS_CLOSE:
-//       // TODO
-//       break;
-//     case SYS_CREATE:
-//       // TODO
-//       lock_aquire(&fileop_lock);
-//       f->eax = sys_create(args[1], args[2]);
-//       lock_release(&fileop_lock);
-//       break;
-//     case SYS_EXEC:
-//       // TODO
-//       break;
-//     case SYS_EXIT:
-//       //TODO
-//       f->eax = args[1];
-//       sys_exit(args[1]);
-//       break;
-//     case SYS_FILESIZE:
-//       // TODO
-//       break;
-//     case SYS_HALT:
-//       // TODO
-//       break;
-//     case SYS_OPEN:
-//       // TODO
-//       break;
-//     case SYS_PRACTICE:
-//       // TODO
-//       f->eax = sys_practice(args[1]);
-//       break;
-//     case SYS_READ:
-//       // TODO
-//       break;
-//     case SYS_REMOVE:
-//       // TODO
-//       break;
-//     case SYS_SEEK:
-//       // TODO
-//       break;
-//     case SYS_TELL:
-//       // TODO
-//       break;
-//     case SYS_WAIT:
-//       // TODO
-//       break;
-//     case SYS_WRITE:
-//       //TODO
-//       f->eax = sys_write(args[1], (const char*)args[2], args[3]);
-//       break;
-//   }
-// }
-
-
 
 void sys_halt() {
   // TODO
@@ -183,7 +133,8 @@ void sys_exit(int status) {
 }
 
 pid_t sys_exec(const char *cmd_line) {
-  // TODO
+  pid_t pid = process_execute(cmd_line);
+  return pid;
 }
 
 int sys_wait(pid_t pid) {
@@ -236,6 +187,26 @@ void sys_close(int fd) {
 
 int sys_practice(int i) {
   return ++i;
+}
+
+void check_arg_pointers(const char *arg_pointer) {
+  char* arg_pointer_cpy = arg_pointer;
+  if (arg_pointer_cpy == NULL) {
+    sys_exit(-1);
+  }
+  
+  while(true) {
+    if (!is_user_vaddr((uint32_t* ) arg_pointer_cpy)) {
+      sys_exit(-1);
+    }
+    else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*) arg_pointer_cpy) == NULL) {
+      sys_exit(-1);
+    }
+    if (*arg_pointer_cpy == NULL) {
+      break;
+    }
+    arg_pointer_cpy++;
+  }
 }
 
 
