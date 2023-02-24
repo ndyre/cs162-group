@@ -27,6 +27,23 @@ struct process {
   uint32_t* pagedir;          /* Page directory. */
   char process_name[16];      /* Name of the main thread */
   struct thread* main_thread; /* Pointer to main thread */
+  struct process* parent;     //Parent's pcb
+  struct list children;          //List of all children pcb's
+//   struct list threads;
+//   struct semaphore wait_status; //Semaphore that will be upped after child let's parent run
+//   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
+  bool parent_waiting;        //Used to throw error if parent has already called wait on child process
+//   int ref_cnt;                //Starts at 2.  Once at 0, can free whole struct
+  int status;                 //Exit status for parent pcb
+  void* shared_data;
+};
+
+struct start_process_struct {
+   char* fn_copy;
+   struct process* pcb;
+   int load_status;
+   struct semaphore load_status_sema;
+   struct lock load_status_lock;
 };
 
 void userprog_init(void);
