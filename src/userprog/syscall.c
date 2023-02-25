@@ -10,6 +10,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "lib/kernel/console.h"
 
 
 static void syscall_handler(struct intr_frame*);
@@ -24,7 +25,7 @@ bool sys_remove(const char *file);
 int sys_open(const char *file);
 int sys_file_size(int fd);
 int sys_read(int fd, void *buffer, unsigned size);
-int sys_write(int fd, const char *buffer, unsigned size);
+int sys_write(int fd, void *buffer, unsigned size);
 void sys_close(int fd);
 int sys_practice(int i);
 void sys_seek(int fd, unsigned position);
@@ -115,7 +116,8 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_WRITE:
         //TODO
         check_user_stack_addresses(args + 1, 12);
-        f->eax = sys_write(args[1], (const char*)args[2], args[3]);
+        check_arg_pointers(args[2]);
+        f->eax = sys_write(args[1], args[2], args[3]);
         break;
       case SYS_SEEK:
         //TODO
@@ -213,8 +215,12 @@ int sys_read(int fd, void *buffer, unsigned size) {
   return file_read(file, buffer, size);
 }
 
-int sys_write(int fd, const char *buffer, unsigned size) {
+int sys_write(int fd, void *buffer, unsigned size) {
   // TODO
+  if (size == 0) {
+    return 0;
+  }
+  
   if (fd == 1)
   {
     putbuf(buffer, size);
@@ -222,7 +228,13 @@ int sys_write(int fd, const char *buffer, unsigned size) {
     // Not sure what to return when writing to the console
     return size;
   }
-  return 0;
+
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return -1;
+  }
+
+  return file_write(file, buffer, size);
 }
 
 void sys_seek(int fd, unsigned position) {
