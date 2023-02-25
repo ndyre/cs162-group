@@ -68,6 +68,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         f->eax = sys_exec(args[1]);
         break;
       case SYS_WAIT:
+        f->eax = sys_wait(args[1]);
         //TODO
         break;
     }
@@ -128,7 +129,11 @@ void sys_halt() {
 void sys_exit(int status) {
   // TODO
   struct thread* t = thread_current();
-  t->pcb->status = status;
+  // t->pcb->status = status;
+  struct shared_data_struct* shared_data  = t->pcb->shared_data;
+  lock_acquire(&(shared_data->shared_data_lock));
+  shared_data->shared_data_status = status;
+  lock_release(&(shared_data->shared_data_lock));
   process_exit();
 }
 
@@ -139,6 +144,8 @@ pid_t sys_exec(const char *cmd_line) {
 
 int sys_wait(pid_t pid) {
   // TODO
+  int exit_status = process_wait(pid);
+  return exit_status;
 }
 
 bool sys_create(const char *file, unsigned initial_size) {
