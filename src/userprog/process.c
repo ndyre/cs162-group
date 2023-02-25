@@ -68,7 +68,7 @@ struct process* create_child_pcb() {
     // sema_init(&(new_pcb->wait_status), 0);
     // new_pcb->parent_waiting = false;
     // new_pcb->ref_cnt = 2;
-    new_pcb->status = -1;
+    // new_pcb->status = -1;
     pid_t pid;
 
     // t->pcb = new_pcb;
@@ -109,6 +109,7 @@ pid_t process_execute(const char* file_name) {
   start_process_args->shared_data_status = -1;
   start_process_args->ref_count = 2;
   start_process_args->parent_waiting = false;
+  start_process_args->load_status = -1;
 
   
   sema_init(&(start_process_args->shared_data_sema),0);
@@ -133,7 +134,7 @@ pid_t process_execute(const char* file_name) {
 
   //Check if child errored on load
   lock_acquire(&(start_process_args->shared_data_lock));
-  if (start_process_args->shared_data_status == -1) {
+  if (start_process_args->load_status == -1) {
     lock_release(&(start_process_args->shared_data_lock));
     return -1;
   }
@@ -211,15 +212,15 @@ static void start_process(void* start_process_args) {
   lock_acquire(&(args_struct->shared_data_lock));
   pcb->shared_data = args_struct;
   //CHECK LIST
-  lock_acquire((&args_struct->pcb->child_list_lock));
-  struct list_elem *e;
-  struct list* list_im_on= &args_struct->pcb->children;
-    for (e = list_begin(list_im_on); e != list_end(list_im_on); e = list_next(e)) {
-    struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
-    }
-  lock_release((&args_struct->pcb->child_list_lock));
+  // lock_acquire((&args_struct->pcb->child_list_lock));
+  // struct list_elem *e;
+  // struct list* list_im_on= &args_struct->pcb->children;
+  //   for (e = list_begin(list_im_on); e != list_end(list_im_on); e = list_next(e)) {
+  //   struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
+  //   }
+  // lock_release((&args_struct->pcb->child_list_lock));
   //CHECK LIST
-  args_struct->shared_data_status = 0;
+  args_struct->load_status = 0;
   lock_release(&(args_struct->shared_data_lock));
   sema_up(&(args_struct->shared_data_sema));
   

@@ -37,7 +37,7 @@ struct process {
 //   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
   // bool parent_waiting;        //Used to throw error if parent has already called wait on child process
 //   int ref_cnt;                //Starts at 2.  Once at 0, can free whole struct
-  int status;                 //Exit status for parent pcb
+  // int status;                 //Exit status for parent pcb
   struct shared_data_struct* shared_data;
   pid_t pid;
   struct lock child_list_lock;
@@ -47,6 +47,7 @@ struct shared_data_struct {
    char* fn_copy;
    struct process* pcb;
    int shared_data_status;
+   int load_status;
    struct semaphore shared_data_sema;
    struct lock shared_data_lock;
    struct list_elem elem;
