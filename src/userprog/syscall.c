@@ -68,6 +68,8 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         f->eax = sys_exec(args[1]);
         break;
       case SYS_WAIT:
+        // check_user_stack_addresses(args+1, 4);
+        // check_arg_pointers(args[1]);
         f->eax = sys_wait(args[1]);
         //TODO
         break;
