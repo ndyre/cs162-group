@@ -58,10 +58,12 @@ struct process* create_child_pcb() {
     new_pcb->main_thread = parent; //??????
     new_pcb->parent = parent->pcb;
     list_init(&(new_pcb->children));
+    list_init(&(new_pcb->fdt));
+    new_pcb->max_fd = 2;
     // list_init(&(new_pcb->threads));
     // sema_init(&(new_pcb->wait_status), 0);
     // lock_init(&(new_pcb->ref_cnt_lock));
-    new_pcb->parent_waiting = false;
+    // new_pcb->parent_waiting = false;
     // new_pcb->ref_cnt = 2;
     new_pcb->status = -1;
     // t->pcb = new_pcb;

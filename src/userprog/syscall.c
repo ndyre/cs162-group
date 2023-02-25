@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <string.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -7,6 +8,9 @@
 #include "threads/pte.h"
 #include "userprog/pagedir.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "devices/input.h"
+
 
 static void syscall_handler(struct intr_frame*);
 
@@ -19,7 +23,7 @@ bool sys_create(const char *file, unsigned initial_size);
 bool sys_remove(const char *file);
 int sys_open(const char *file);
 int sys_file_size(int fd);
-int sys_read(int fd, char *buffer, unsigned size);
+int sys_read(int fd, void *buffer, unsigned size);
 int sys_write(int fd, const char *buffer, unsigned size);
 void sys_close(int fd);
 int sys_practice(int i);
@@ -29,6 +33,8 @@ unsigned sys_tell(int fd);
 // User pointer validation
 void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes);
 void check_arg_pointers(const char *arg_pointer);
+
+struct file* get_file(int fd);
 
 
 void syscall_init(void) { 
@@ -64,7 +70,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_EXEC:
         //TODO
         check_user_stack_addresses(args + 1, 4);
-        check_arg_pointers(args[1]);
+        check_arg_pointers((const char*)args[1]);
         f->eax = sys_exec(args[1]);
         break;
       case SYS_WAIT:
@@ -80,22 +86,31 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_CREATE:
         //TODO
         check_user_stack_addresses(args + 1, 8);
-        check_arg_pointers(args[1]);
+        check_arg_pointers((const char*)args[1]);
         f->eax = sys_create((const char*) args[1], args[2]);
         break;
       case SYS_REMOVE:
         //TODO
         check_user_stack_addresses(args + 1, 4);
+        check_arg_pointers((const char*)args[1]);
         f->eax = sys_remove((const char*) args[1]);
         break; 
       case SYS_OPEN:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
+        check_arg_pointers((const char*)args[1]);
+        f->eax = sys_open((const char*)args[1]);
         break;
       case SYS_FILESIZE:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
+        f->eax = sys_file_size(args[1]);
         break;
       case SYS_READ:
         //TODO
+        check_user_stack_addresses(args + 1, 12);
+        check_arg_pointers(args[2]);
+        f->eax = sys_read(args[1], args[2], args[3]);
         break;
       case SYS_WRITE:
         //TODO
@@ -153,13 +168,49 @@ bool sys_remove(const char *file) {
 
 int sys_open(const char *file) {
   // TODO
+  struct fdt_entry* fdt_entry = malloc(sizeof(struct fdt_entry));
+  fdt_entry->file = filesys_open(file);
+  
+  if (fdt_entry->file == NULL) {
+    return -1;
+  }
+
+  struct thread* t = thread_current();
+  fdt_entry->fd = t->pcb->max_fd++;
+  list_push_back(&t->pcb->fdt, &fdt_entry->elem);
+
+  return fdt_entry->fd;
 }
 
 int sys_file_size(int fd) {
   // TODO
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return -1;
+  }
+
+  return file_length(file);
 }
-int sys_read(int fd, char *buffer, unsigned size) {
+
+int sys_read(int fd, void *buffer, unsigned size) {
   // TODO
+  if (fd == 0)
+  {
+    char* input[size + 1];
+    for (int i = 0; i < size; i++) {
+      input[i] = input_getc();
+    }
+    input[size] = '\0';
+    memcpy(buffer, (void*)input, size + 1);
+    return size;
+  }
+
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return -1;
+  }
+
+  return file_read(file, buffer, size);
 }
 
 int sys_write(int fd, const char *buffer, unsigned size) {
@@ -226,5 +277,21 @@ void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes) {
     }
     uaddr_cpy++;
   }
+}
 
+
+struct file* get_file(int fd) {
+  if (fd == 0 || fd == 1) {
+    return NULL;
+  }
+  
+  struct process* cur_pcb = thread_current()->pcb;
+  struct list_elem* e;
+  for (e = list_begin(&cur_pcb->fdt); e != list_end(&cur_pcb->fdt); e = list_next(e)) {
+    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    if (fdt_entry->fd == fd) {
+      return fdt_entry->file;
+    }
+  }
+  return NULL;
 }
