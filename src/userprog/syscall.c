@@ -121,12 +121,18 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
       case SYS_SEEK:
         //TODO
+        check_user_stack_addresses(args + 1, 8);
+        sys_seek(args[1], args[2]);
         break;
       case SYS_TELL:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
+        f->eax = sys_tell(args[1]);
         break;
       case SYS_CLOSE:
         //TODO
+        check_user_stack_addresses(args + 1, 4);
+        sys_close(args[1]);
         break;
       case SYS_PRACTICE:
         //TODO
@@ -217,10 +223,6 @@ int sys_read(int fd, void *buffer, unsigned size) {
 
 int sys_write(int fd, void *buffer, unsigned size) {
   // TODO
-  if (size == 0) {
-    return 0;
-  }
-  
   if (fd == 1)
   {
     putbuf(buffer, size);
@@ -239,13 +241,31 @@ int sys_write(int fd, void *buffer, unsigned size) {
 
 void sys_seek(int fd, unsigned position) {
   // TODO
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return;
+  }
+
+  file_seek(file, position);
 }
+
 unsigned sys_tell(int fd) {
-  // TODO
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return  -1;
+  }
+
+  return file_tell(file);
 }
 
 void sys_close(int fd) {
-  // TODO
+  struct file* file = get_file(fd);
+  if (file == NULL) {
+    return;
+  }
+  file_close(file);
+
+  remove_file(fd);
 }
 
 int sys_practice(int i) {
@@ -306,4 +326,20 @@ struct file* get_file(int fd) {
     }
   }
   return NULL;
+}
+
+// Removes and frees entry from fdt
+void remove_file(int fd) {
+  struct process* cur_pcb = thread_current()->pcb;
+  struct list_elem* e;
+
+  while (!list_empty (&cur_pcb->fdt))
+  {
+    struct list_elem *e = list_pop_front(&cur_pcb->fdt);
+    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    if(fdt_entry->fd == fd) {
+      list_remove(&fdt_entry->elem);
+      free(fdt_entry);
+    }
+  }
 }

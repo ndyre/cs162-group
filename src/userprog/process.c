@@ -21,6 +21,7 @@
 #include "threads/vaddr.h"
 
 static struct semaphore temporary;
+static struct lock file_allow_deny_lock;
 static thread_func start_process NO_RETURN;
 static thread_func start_pthread NO_RETURN;
 static bool load(const char* file_name, char* args, void (**eip)(void), void** esp);
@@ -43,6 +44,9 @@ void userprog_init(void) {
      can come at any time and activate our pagedir */
   t->pcb = calloc(sizeof(struct process), 1);
   success = t->pcb != NULL;
+
+  // Initialize lock for calling file_allow_write and file_deny_write
+  lock_init(&file_allow_deny_lock);
 
   /* Kill the kernel if we did not succeed */
   ASSERT(success);
@@ -89,8 +93,9 @@ pid_t process_execute(const char* file_name) {
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
-  char* tmp = malloc(strlen((char*)file_name) + 1);
-  strlcpy(tmp, (char*)file_name, strlen(file_name) + 1); 
+  // char* tmp = malloc(strlen((char*)file_name) + 1);
+  char tmp[strlen(file_name) + 1];
+  strlcpy(tmp, file_name, strlen(file_name) + 1);
   
   char* tmpPointer;
   file_name = strtok_r(tmp, " ", &tmpPointer);
@@ -134,8 +139,8 @@ static void start_process(void* start_process_args) {
   
 
   // Copy since strtok_r changes string
-  char* tmp = malloc(strlen((char*)file_name_) + 1);
-  strlcpy(tmp, (char*)file_name_, strlen(file_name_) + 1); 
+  char tmp[strlen(file_name_) + 1];
+  strlcpy(tmp, file_name_, strlen(file_name_) + 1);
   
   char* tmpPointer;
   char* file_name = strtok_r(tmp, " ", &tmpPointer);
@@ -240,6 +245,14 @@ void process_exit() {
     pagedir_activate(NULL);
     pagedir_destroy(pd);
   }
+  
+  // Allow write
+  lock_acquire(&file_allow_deny_lock);
+  struct file* executable = cur->pcb->executable;
+  if (executable != NULL) {
+    file_close(cur->pcb->executable);
+  }
+  lock_release(&file_allow_deny_lock);
 
   /* Free the PCB of this process and kill this thread
      Avoid race where PCB is freed before t->pcb is set to NULL
@@ -249,8 +262,23 @@ void process_exit() {
   cur->pcb = NULL;
   free(pcb_to_free);
 
+  
   sema_up(&temporary);
   thread_exit();
+}
+
+void close_and_remove_all_files(void) {
+  struct process* cur_pcb = thread_current()->pcb;
+  struct list_elem* e;
+
+  while (!list_empty (&cur_pcb->fdt))
+  {
+    struct list_elem *e = list_pop_front(&cur_pcb->fdt);
+    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    file_close(fdt_entry->file);
+    list_remove(&fdt_entry->elem);
+    free(fdt_entry);
+  }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -355,10 +383,17 @@ bool load(const char* file_name, char* args, void (**eip)(void), void** esp) {
 
   /* Open executable file. */
   file = filesys_open(file_name);
+  t->pcb->executable = file;
+  
   if (file == NULL) {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
+  
+  // Deny write
+  lock_acquire(&file_allow_deny_lock);
+  file_deny_write(file);
+  lock_release(&file_allow_deny_lock);
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -429,7 +464,6 @@ bool load(const char* file_name, char* args, void (**eip)(void), void** esp) {
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
   return success;
 }
 

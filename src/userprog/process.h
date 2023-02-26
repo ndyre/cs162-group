@@ -31,6 +31,7 @@ struct process {
   struct list children;          //List of all children pcb's
   struct list fdt;
   int max_fd;
+  struct file* executable;
 //   struct list threads;
 //   struct semaphore wait_status; //Semaphore that will be upped after child let's parent run
 //   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
