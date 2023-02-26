@@ -3,102 +3,105 @@ CS 162 Group Repository
 
 # Passing
 
-- pintos-test  do-nothing
-- pintos-test  stack-align-0
-- pintos-test  args-none
-- pintos-test  args-single
-- pintos-test  args-multiple
-- pintos-test  args-many
-- pintos-test  args-dbl-space
-- pintos-test  sc-bad-sp
-- pintos-test  sc-bad-arg
-- pintos-test  sc-boundary
-- pintos-test  sc-boundary-2
-- pintos-test  sc-boundary-3
-- pintos-test  halt
-- pintos-test  exit
-- pintos-test  create-normal
-- pintos-test  create-empty
-- pintos-test  create-null
-- pintos-test  create-bad-ptr
-- pintos-test  create-long
-- pintos-test  create-exists
-- pintos-test  create-bound
-- pintos-test  open-boundary
-- pintos-test  open-null
-- pintos-test  close-stdin
-- pintos-test  close-stdout
-- pintos-test  close-bad-fd
-- pintos-test  read-stdout
-- pintos-test  read-bad-fd
-- pintos-test  write-stdin
-- pintos-test  write-bad-fd
-- pintos-test  exec-once
-- pintos-test  exec-arg
-- pintos-test  exec-bound
-- pintos-test  exec-bound-2
-- pintos-test  exec-bound-3
-- pintos-test  exec-multiple
-- pintos-test  exec-missing
-- pintos-test  exec-bad-ptr
-- pintos-test  wait-bad-pid
-- pintos-test  bad-read
-- pintos-test  bad-write
-- pintos-test  bad-read2
-- pintos-test  bad-write2
-- pintos-test  bad-jump
-- pintos-test  bad-jump2
-- pintos-test  iloveos
-- pintos-test  practice
-- pintos-test  stack-align-1
-- pintos-test  stack-align-2
-- pintos-test  stack-align-3
-- pintos-test  stack-align-4
+- do-nothing
+- args-none
+- args-single
+- args-multiple
+- args-many
+- args-dbl-space
+- sc-bad-sp
+- sc-bad-arg
+- halt
+- create-normal
+- create-empty
+- create-null
+- create-bad-ptr
+- create-long
+- create-exists
+- create-bound
+- open-boundary
+- open-null
+- close-stdin
+- close-stdout
+- close-bad-fd
+- read-stdout
+- read-bad-fd
+- write-stdin
+- write-bad-fd
+- exec-once
+- exec-arg
+- exec-multiple
+- exec-missing
+- exec-bad-ptr
+- wait-bad-pid
+- iloveos
+- practice
+- stack-align-0
+- stack-align-1
+- stack-align-2
+- stack-align-3
+- stack-align-4
+- sc-boundary-2
+- sc-boundary-3
+- exec-bound-2
+- exec-bound-3
+- wait-simple
+- wait-twice
+- wait-killed
+
+- sc-boundary 
+- exec-bound 
+- exit 
+
+- bad-jump 
+- bad-read 
+- bad-write 
+- bad-read2
+- bad-write2
+- bad-jump2
+- no-vm/multi-oom
+- multi-recurse
 
 # Failing
-- pintos-test  /base/syn-write
-- pintos-test  open-normal
-- pintos-test  open-missing
-- pintos-test  open-empty
-- pintos-test  open-bad-ptr
-- pintos-test  open-twice
-- pintos-test  close-normal
-- pintos-test  close-twice
-- pintos-test  read-normal
-- pintos-test  read-bad-ptr
-- pintos-test  read-boundary
-- pintos-test  read-zero
-- pintos-test  write-normal
-- pintos-test  write-bad-ptr
-- pintos-test  write-boundary
-- pintos-test  write-zero
-- pintos-test  wait-simple
-- pintos-test  wait-twice
-- pintos-test  wait-killed
-- pintos-test  multi-recurse
-- pintos-test  multi-child-fd
-- pintos-test  rox-simple
-- pintos-test  rox-child
-- pintos-test  rox-multichild
-- pintos-test  floating-point
-- pintos-test  fp-simul
-- pintos-test  fp-asm
-- pintos-test  fp-syscall
-- pintos-test  fp-kernel-e
-- pintos-test  fp-init
-- pintos-test  kernel/fp-kasm
-- pintos-test  kernel/fp-kinit
-- pintos-test  no-vm/multi-oom
-- pintos-test  /base/lg-create
-- pintos-test  /base/lg-full
-- pintos-test  /base/lg-random
-- pintos-test  /base/lg-seq-block
-- pintos-test  /base/lg-seq-random
-- pintos-test  /base/sm-create
-- pintos-test  /base/sm-full
-- pintos-test  /base/sm-random
-- pintos-test  /base/sm-seq-block
-- pintos-test  /base/sm-seq-random
-- pintos-test  /base/syn-read
-- pintos-test  /base/syn-remove
-- pintos-test  /base/syn-write
+
+- /base/syn-write
+- open-normal
+- open-missing
+- open-empty
+- open-bad-ptr
+- open-twice
+- close-normal
+- close-twice
+- read-normal
+- read-bad-ptr
+- read-boundary
+- read-zero
+- write-normal
+- write-bad-ptr
+- write-boundary
+- write-zero
+- multi-child-fd
+- rox-simple
+- rox-child
+- rox-multichild
+- floating-point
+- fp-simul
+- fp-asm
+- fp-syscall
+- fp-kernel-e
+- fp-init
+- kernel/fp-kasm
+- kernel/fp-kinit
+- /base/lg-create
+- /base/lg-full
+- /base/lg-random
+- /base/lg-seq-block
+- /base/lg-seq-random
+- /base/sm-create
+- /base/sm-full
+- /base/sm-random
+- /base/sm-seq-block
+- /base/sm-seq-random
+- /base/syn-read
+- /base/syn-remove
+- /base/syn-write
