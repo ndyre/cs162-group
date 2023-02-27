@@ -54,7 +54,7 @@ struct shared_data_struct {
     pid_t pid;
     int ref_count;
     bool parent_waiting;
-
+};
 struct fdt_entry {
   struct list_elem elem;
   struct file* file;
