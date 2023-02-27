@@ -17,6 +17,9 @@ typedef tid_t pid_t;
 typedef void (*pthread_fun)(void*);
 typedef void (*stub_fun)(pthread_fun, void*);
 
+struct process;
+struct shared_data_struct;
+
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate
    PCB from the TCB. All TCBs in a process will have a pointer
@@ -35,20 +38,22 @@ struct process {
 //   struct list threads;
 //   struct semaphore wait_status; //Semaphore that will be upped after child let's parent run
 //   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
-//   int ref_cnt;                //Starts at 2.  Once at 0, can free whole struct
-  int status;                 //Exit status for parent pcb
-  void* shared_data;
+  struct shared_data_struct* shared_data;
+  pid_t pid;
+  struct lock child_list_lock;
 };
 
-struct start_process_struct {
+struct shared_data_struct {
    char* fn_copy;
    struct process* pcb;
+   int shared_data_status;
    int load_status;
-   int ref_cnt;                         //Starts at 2.  Once at 0, can free whole struct
-   struct semaphore load_status_sema;
-   struct lock load_status_lock;
-   bool parent_waiting;                 //Used to throw error if parent has already called wait on child process
-};
+   struct semaphore shared_data_sema;
+   struct lock shared_data_lock;
+   struct list_elem elem;
+    pid_t pid;
+    int ref_count;
+    bool parent_waiting;
 
 struct fdt_entry {
   struct list_elem elem;
