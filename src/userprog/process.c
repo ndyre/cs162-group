@@ -319,10 +319,9 @@ void process_exit() {
     lock_acquire(&(child->shared_data_lock));
     child->ref_count -= 1;
     if (child->ref_count == 0) {
-      // e = list_next(e);
       e = list_remove(&(child->elem));
+      // MIGHT NEED TO ADD THIS LINE LATER lock_release(&(child->shared_data_lock));
       free(child);
-      // lock_release(&(child->shared_data_lock));
     }
     else {
       lock_release(&(child->shared_data_lock));
@@ -330,22 +329,6 @@ void process_exit() {
     }
     // lock_release(&(child->shared_data_lock));
   }
-
-  // for (e = list_begin(my_children); e != list_end(my_children); e = list_next(e)) {
-  //   struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
-  //   lock_acquire(&(child->shared_data_lock));
-  //   child->ref_count -= 1;
-  //   if (child->ref_count == 0) {
-  //     list_remove(&(child->elem));
-  //     free(child);
-  //     // lock_release(&(child->shared_data_lock));
-
-  //   }
-  //   else {
-  //     lock_release(&(child->shared_data_lock));
-  //   }
-  //   // lock_release(&(child->shared_data_lock));
-  // }
   lock_release(&(cur->pcb->child_list_lock));
 
   lock_acquire(&(shared_data->shared_data_lock));
