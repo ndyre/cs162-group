@@ -205,18 +205,10 @@ static void start_process(void* start_process_args) {
     lock_release(&args_struct->shared_data_lock);
     thread_exit();
   }
+  
   //Program loaded properly. Let the parent know.
   lock_acquire(&(args_struct->shared_data_lock));
   pcb->shared_data = args_struct;
-  //CHECK LIST
-  // lock_acquire((&args_struct->pcb->child_list_lock));
-  // struct list_elem *e;
-  // struct list* list_im_on= &args_struct->pcb->children;
-  //   for (e = list_begin(list_im_on); e != list_end(list_im_on); e = list_next(e)) {
-  //   struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
-  //   }
-  // lock_release((&args_struct->pcb->child_list_lock));
-  //CHECK LIST
   args_struct->load_status = 0;
   lock_release(&(args_struct->shared_data_lock));
   sema_up(&(args_struct->shared_data_sema));
@@ -227,6 +219,7 @@ static void start_process(void* start_process_args) {
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+  // asm volatile("fsave (%0)" : : "g"(&if_.fpu_state));
   asm volatile("movl %0, %%esp; jmp intr_exit" : : "g"(&if_) : "memory");
   NOT_REACHED();
 }

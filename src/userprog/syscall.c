@@ -12,6 +12,13 @@
 #include "devices/input.h"
 #include "lib/kernel/console.h"
 
+#define CHECK_STACK_PTRS0(args) check_user_stack_addresses(args, 4);
+#define CHECK_STACK_PTRS1(args) check_user_stack_addresses(args + 1, 4)
+#define CHECK_STACK_PTRS2(args) check_user_stack_addresses(args + 1, 8)
+#define CHECK_STACK_PTRS3(args) check_user_stack_addresses(args + 1, 12)
+
+#define CHECK_ARGS_PTR1(args) check_arg_pointers((const char*)args[1])
+#define CHECK_ARGS_PTR2(args) check_arg_pointers((const char*)args[2]);
 
 static void syscall_handler(struct intr_frame*);
 
@@ -53,7 +60,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
 
   // printf("System call number: %d\n", args[0]);
 
-  check_user_stack_addresses(args, 4);
+  CHECK_STACK_PTRS0(args);
   if (args[0] < 4)
   {
     switch(args[0])
@@ -63,21 +70,20 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
       case SYS_EXIT:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
+        CHECK_STACK_PTRS1(args);
         f->eax = args[1];
         sys_exit(args[1]);
         break;
       case SYS_EXEC:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
-        check_arg_pointers((const char*)args[1]);
+        CHECK_STACK_PTRS1(args);
+        CHECK_ARGS_PTR1(args);
         f->eax = sys_exec(args[1]);
         break;
       case SYS_WAIT:
-        // check_user_stack_addresses(args+1, 4);
-        // check_arg_pointers(args[1]);
+        // TODO
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_wait(args[1]);
-        //TODO
         break;
     }
   }
@@ -87,58 +93,57 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
     switch(args[0])
     {
       case SYS_CREATE:
-        //TODO
-        check_user_stack_addresses(args + 1, 8);
-        check_arg_pointers((const char*)args[1]);
+        CHECK_STACK_PTRS2(args);
+        CHECK_ARGS_PTR1(args);
         f->eax = sys_create((const char*) args[1], args[2]);
         break;
       case SYS_REMOVE:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
-        check_arg_pointers((const char*)args[1]);
+        CHECK_STACK_PTRS1(args);
+        CHECK_ARGS_PTR1(args);
         f->eax = sys_remove((const char*) args[1]);
         break; 
       case SYS_OPEN:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
-        check_arg_pointers((const char*)args[1]);
+        CHECK_STACK_PTRS1(args);
+        CHECK_ARGS_PTR1(args);
         f->eax = sys_open((const char*)args[1]);
         break;
       case SYS_FILESIZE:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_file_size(args[1]);
         break;
       case SYS_READ:
         //TODO
-        check_user_stack_addresses(args + 1, 12);
-        check_arg_pointers(args[2]);
+        CHECK_STACK_PTRS3(args);
+        CHECK_ARGS_PTR2(args);
         f->eax = sys_read(args[1], args[2], args[3]);
         break;
       case SYS_WRITE:
         //TODO
-        check_user_stack_addresses(args + 1, 12);
-        check_arg_pointers(args[2]);
+        CHECK_STACK_PTRS3(args);
+        CHECK_ARGS_PTR2(args);
         f->eax = sys_write(args[1], args[2], args[3]);
         break;
       case SYS_SEEK:
         //TODO
-        check_user_stack_addresses(args + 1, 8);
+        CHECK_STACK_PTRS2(args);
         sys_seek(args[1], args[2]);
         break;
       case SYS_TELL:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_tell(args[1]);
         break;
       case SYS_CLOSE:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
+        CHECK_STACK_PTRS1(args);
         sys_close(args[1]);
         break;
       case SYS_PRACTICE:
         //TODO
-        check_user_stack_addresses(args + 1, 4);
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_practice(args[1]);
         break; 
     }
