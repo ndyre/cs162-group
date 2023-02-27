@@ -20,6 +20,9 @@ typedef void (*stub_fun)(pthread_fun, void*);
 struct process;
 struct shared_data_struct;
 
+// Global lock for all file operations
+struct lock fileop_lock;
+
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate
    PCB from the TCB. All TCBs in a process will have a pointer
@@ -30,7 +33,6 @@ struct process {
   uint32_t* pagedir;          /* Page directory. */
   char process_name[16];      /* Name of the main thread */
   struct thread* main_thread; /* Pointer to main thread */
-  struct process* parent;     //Parent's pcb
   struct list children;          //List of all children pcb's
   struct list fdt;
   int max_fd;
@@ -54,6 +56,7 @@ struct shared_data_struct {
     pid_t pid;
     int ref_count;
     bool parent_waiting;
+};
 
 struct fdt_entry {
   struct list_elem elem;

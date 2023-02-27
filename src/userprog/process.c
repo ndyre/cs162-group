@@ -21,8 +21,6 @@
 #include "threads/vaddr.h"
 
 
-static struct lock file_allow_deny_lock;
-
 static thread_func start_process NO_RETURN;
 static thread_func start_pthread NO_RETURN;
 static bool load(const char* file_name, char* args, void (**eip)(void), void** esp);
@@ -51,8 +49,7 @@ void userprog_init(void) {
   // shared_data->ref_count = 2;
   // t->pcb->shared_data = shared_data;
 
-  // Initialize lock for calling file_allow_write and file_deny_write
-  lock_init(&file_allow_deny_lock);
+  lock_init(&fileop_lock);
 
   /* Kill the kernel if we did not succeed */
   ASSERT(success);
@@ -65,8 +62,6 @@ struct process* create_child_pcb() {
   if (success) {
     struct thread* parent = thread_current();
     new_pcb->pagedir = NULL;
-    new_pcb->main_thread = parent; //??????
-    new_pcb->parent = parent->pcb;
     list_init(&(new_pcb->children));
     lock_init(&(new_pcb->child_list_lock));
 
@@ -287,7 +282,7 @@ int process_wait(pid_t child_pid) {
     else {
       lock_release(&(child->shared_data_lock));
       e = list_next(e);
-    }
+      }
     //MIGHT NEED TO RELEASE CHILD LOCK HERE TOO. NOT SURE
     }
     lock_release(&(my_pcb->child_list_lock));    
@@ -360,13 +355,19 @@ void process_exit() {
     pagedir_destroy(pd);
   }
   
+  // Lock might be held if exiting from a file syscall
+  if (!lock_held_by_current_thread(&fileop_lock)) {
+    lock_acquire(&fileop_lock);
+  }
+  
   // Allow write
-  lock_acquire(&file_allow_deny_lock);
   struct file* executable = cur->pcb->executable;
   if (executable != NULL) {
     file_close(cur->pcb->executable);
   }
-  lock_release(&file_allow_deny_lock);
+  lock_release(&fileop_lock);
+
+  close_and_remove_all_files();
 
   /* Free the PCB of this process and kill this thread
      Avoid race where PCB is freed before t->pcb is set to NULL
@@ -386,9 +387,13 @@ void close_and_remove_all_files(void) {
 
   while (!list_empty (&cur_pcb->fdt))
   {
-    struct list_elem *e = list_pop_front(&cur_pcb->fdt);
+    e = list_pop_front(&cur_pcb->fdt);
     struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    
+    lock_acquire(&fileop_lock);
     file_close(fdt_entry->file);
+    lock_release(&fileop_lock);
+    
     list_remove(&fdt_entry->elem);
     free(fdt_entry);
   }
@@ -502,11 +507,11 @@ bool load(const char* file_name, char* args, void (**eip)(void), void** esp) {
     printf("load: %s: open failed\n", file_name);
     goto done;
   }
-  
+
   // Deny write
-  lock_acquire(&file_allow_deny_lock);
+  lock_acquire(&fileop_lock);
   file_deny_write(file);
-  lock_release(&file_allow_deny_lock);
+  lock_release(&fileop_lock);
 
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||

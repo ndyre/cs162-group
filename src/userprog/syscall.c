@@ -39,8 +39,7 @@ struct file* get_file(int fd);
 
 
 void syscall_init(void) { 
-  intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); 
-  lock_init(&fileop_lock);
+  intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void syscall_handler(struct intr_frame* f UNUSED) {
@@ -341,14 +340,13 @@ struct file* get_file(int fd) {
 void remove_file(int fd) {
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;
-
-  while (!list_empty (&cur_pcb->fdt))
-  {
-    struct list_elem *e = list_pop_front(&cur_pcb->fdt);
+  
+  for (e = list_begin(&cur_pcb->fdt); e != list_end(&cur_pcb->fdt); e = list_next(e)) {
     struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
-    if(fdt_entry->fd == fd) {
+    if (fdt_entry->fd == fd) {
       list_remove(&fdt_entry->elem);
       free(fdt_entry);
+      return;
     }
   }
 }
