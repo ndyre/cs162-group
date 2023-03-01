@@ -33,29 +33,29 @@ struct process {
   uint32_t* pagedir;          /* Page directory. */
   char process_name[16];      /* Name of the main thread */
   struct thread* main_thread; /* Pointer to main thread */
-  struct list children;          //List of all children pcb's
+  struct list children;       //List of all children pcb's
   struct list fdt;
   int max_fd;
   struct file* executable;
-//   struct list threads;
-//   struct semaphore wait_status; //Semaphore that will be upped after child let's parent run
-//   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
+  //   struct list threads;
+  //   struct semaphore wait_status; //Semaphore that will be upped after child let's parent run
+  //   struct lock ref_cnt_lock;  //Lock so parent and child do not access ref_cnt at same time
   struct shared_data_struct* shared_data;
   pid_t pid;
   struct lock child_list_lock;
 };
 
 struct shared_data_struct {
-   char* fn_copy;
-   struct process* pcb;
-   int shared_data_status;
-   int load_status;
-   struct semaphore shared_data_sema;
-   struct lock shared_data_lock;
-   struct list_elem elem;
-    pid_t pid;
-    int ref_count;
-    bool parent_waiting;
+  char* fn_copy;
+  struct process* pcb;
+  int shared_data_status;
+  int load_status;
+  struct semaphore shared_data_sema;
+  struct lock shared_data_lock;
+  struct list_elem elem;
+  pid_t pid;
+  int ref_count;
+  bool parent_waiting;
 };
 
 struct fdt_entry {

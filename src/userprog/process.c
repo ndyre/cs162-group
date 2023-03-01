@@ -20,7 +20,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-
 static thread_func start_process NO_RETURN;
 static thread_func start_pthread NO_RETURN;
 static bool load(const char* file_name, char* args, void (**eip)(void), void** esp);
@@ -57,7 +56,7 @@ void userprog_init(void) {
 
 struct process* create_child_pcb() {
   bool success, pcb_success;
-  struct process* new_pcb = (struct process*) malloc(sizeof(struct process));
+  struct process* new_pcb = (struct process*)malloc(sizeof(struct process));
   success = pcb_success = new_pcb != NULL;
   if (success) {
     struct thread* parent = thread_current();
@@ -69,7 +68,6 @@ struct process* create_child_pcb() {
     new_pcb->max_fd = 2;
 
     pid_t pid;
-
   }
   return new_pcb;
 }
@@ -93,14 +91,15 @@ pid_t process_execute(const char* file_name) {
   // char* tmp = malloc(strlen((char*)file_name) + 1);
   char tmp[strlen(file_name) + 1];
   strlcpy(tmp, file_name, strlen(file_name) + 1);
-  
+
   char* tmpPointer;
   file_name = strtok_r(tmp, " ", &tmpPointer);
-  
+
   struct process* child_pcb = create_child_pcb();
 
-  //Creating struct to pass into start_process 
-  struct shared_data_struct* start_process_args = (struct shared_data_struct*) malloc(sizeof(struct shared_data_struct));
+  //Creating struct to pass into start_process
+  struct shared_data_struct* start_process_args =
+      (struct shared_data_struct*)malloc(sizeof(struct shared_data_struct));
   start_process_args->pcb = child_pcb;
   start_process_args->fn_copy = fn_copy;
   start_process_args->shared_data_status = -1;
@@ -108,8 +107,7 @@ pid_t process_execute(const char* file_name) {
   start_process_args->parent_waiting = false;
   start_process_args->load_status = -1;
 
-  
-  sema_init(&(start_process_args->shared_data_sema),0);
+  sema_init(&(start_process_args->shared_data_sema), 0);
   lock_init(&(start_process_args->shared_data_lock));
 
   //Add shared_data struct to parent/my pcb list
@@ -120,11 +118,12 @@ pid_t process_execute(const char* file_name) {
   start_process_args->elem = new_elem;
 
   size_t num_elems = list_size(parents_children_list);
-  list_push_front(parents_children_list,&(start_process_args->elem));
-  num_elems =  list_size(parents_children_list);
+  list_push_front(parents_children_list, &(start_process_args->elem));
+  num_elems = list_size(parents_children_list);
   lock_release(&(parent_pcb->child_list_lock));
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create(file_name, PRI_DEFAULT, start_process, (void *) start_process_args);
+  tid = thread_create(file_name, PRI_DEFAULT, start_process, (void*)start_process_args);
 
   //Parent waiting until load happens and child process calls sema_up
   sema_down(&(start_process_args->shared_data_sema));
@@ -151,15 +150,14 @@ static void start_process(void* start_process_args) {
   struct shared_data_struct* args_struct = start_process_args;
   char* file_name_ = args_struct->fn_copy;
   struct process* pcb = args_struct->pcb;
-  
 
   // Copy since strtok_r changes string
   char tmp[strlen(file_name_) + 1];
   strlcpy(tmp, file_name_, strlen(file_name_) + 1);
-  
+
   char* tmpPointer;
   char* file_name = strtok_r(tmp, " ", &tmpPointer);
-  char* args = (char*) file_name_;
+  char* args = (char*)file_name_;
 
   struct thread* t = thread_current();
   struct intr_frame if_;
@@ -168,10 +166,10 @@ static void start_process(void* start_process_args) {
   success = pcb_success = pcb != NULL;
 
   /* Initialize process control block */
-  
+
   if (success) {
-  //   // Ensure that timer_interrupt() -> schedule() -> process_activate()
-  //   // does not try to activate our uninitialized pagedir
+    // Ensure that timer_interrupt() -> schedule() -> process_activate()
+    // does not try to activate our uninitialized pagedir
     t->pcb = pcb;
     t->pcb->main_thread = t;
     strlcpy(t->pcb->process_name, t->name, sizeof t->name);
@@ -186,7 +184,7 @@ static void start_process(void* start_process_args) {
     success = load(file_name, args, &if_.eip, &if_.esp);
   }
 
-        /* Handle failure with succesful PCB malloc. Must free the PCB */
+  /* Handle failure with succesful PCB malloc. Must free the PCB */
   if (!success && pcb_success) {
     // Avoid race where PCB is freed before t->pcb is set to NULL
     // If this happens, then an unfortuantely timed timer interrupt
@@ -205,21 +203,26 @@ static void start_process(void* start_process_args) {
     lock_release(&args_struct->shared_data_lock);
     thread_exit();
   }
-  
+
   //Program loaded properly. Let the parent know.
   lock_acquire(&(args_struct->shared_data_lock));
   pcb->shared_data = args_struct;
   args_struct->load_status = 0;
   lock_release(&(args_struct->shared_data_lock));
   sema_up(&(args_struct->shared_data_sema));
-  
+
+  // Initalize fpu register for user process
+  uint8_t temp_fpu_state[108];
+  asm volatile("fsave (%0); fninit; fsave (%1); frstor (%2)"
+               :
+               : "g"(&temp_fpu_state), "g"(&if_.fpu_state), "g"(&temp_fpu_state));
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
-  // asm volatile("fsave (%0)" : : "g"(&if_.fpu_state));
   asm volatile("movl %0, %%esp; jmp intr_exit" : : "g"(&if_) : "memory");
   NOT_REACHED();
 }
@@ -237,49 +240,46 @@ int process_wait(pid_t child_pid) {
   // sema_down(&temporary);
   struct thread* cur = thread_current();
   struct process* my_pcb = cur->pcb;
-  struct list* my_children= &(my_pcb->children);
-  struct list_elem *e;
+  struct list* my_children = &(my_pcb->children);
+  struct list_elem* e;
   lock_acquire(&(my_pcb->child_list_lock));
   e = list_begin(my_children);
   while (e != list_end(my_children)) {
-    struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
+    struct shared_data_struct* child = list_entry(e, struct shared_data_struct, elem);
     lock_acquire(&(child->shared_data_lock));
     if (child->pid == child_pid) {
-        if (child->parent_waiting == true) {
+      if (child->parent_waiting == true) {
+        lock_release(&(my_pcb->child_list_lock));
+        lock_release(&(child->shared_data_lock));
+        return -1;
+      } else {
+        child->parent_waiting = true;
+        lock_release(&(child->shared_data_lock));
+        sema_down(&(child->shared_data_sema));
+        lock_acquire(&(child->shared_data_lock));
+        int exit_status = child->shared_data_status;
+        child->ref_count -= 1;
+        ASSERT(child->ref_count == 0);
+        if (child->ref_count == 0) {
+          //MIGHT NEED TO PUT LIST LOCK HERE
+          e = list_remove(&(child->elem));
+          lock_release(&(child->shared_data_lock));
           lock_release(&(my_pcb->child_list_lock));
+          free(child);
+        } else {
           lock_release(&(child->shared_data_lock));
-          return -1;
+          lock_release(&(my_pcb->child_list_lock));
         }
-        else {
-          child->parent_waiting = true;
-          lock_release(&(child->shared_data_lock));
-          sema_down(&(child->shared_data_sema));
-          lock_acquire(&(child->shared_data_lock));
-          int exit_status = child->shared_data_status;
-          child->ref_count -= 1;
-          ASSERT(child->ref_count == 0);
-          if (child->ref_count == 0) {
-            //MIGHT NEED TO PUT LIST LOCK HERE
-            e = list_remove(&(child->elem));
-            lock_release(&(child->shared_data_lock));
-            lock_release(&(my_pcb->child_list_lock));
-            free(child);
-          }
-          else {
-            lock_release(&(child->shared_data_lock));
-            lock_release(&(my_pcb->child_list_lock));
-          }
-          return exit_status;
-        }
-    }
-    else {
+        return exit_status;
+      }
+    } else {
       lock_release(&(child->shared_data_lock));
       e = list_next(e);
-      }
-    //MIGHT NEED TO RELEASE CHILD LOCK HERE TOO. NOT SURE
     }
-    lock_release(&(my_pcb->child_list_lock));    
-    return -1;
+    //MIGHT NEED TO RELEASE CHILD LOCK HERE TOO. NOT SURE
+  }
+  lock_release(&(my_pcb->child_list_lock));
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -287,7 +287,6 @@ void process_exit() {
   struct thread* cur = thread_current();
   uint32_t* pd;
 
-  
   /* If this thread does not have a PCB, don't worry */
   if (cur->pcb == NULL) {
     thread_exit();
@@ -296,24 +295,23 @@ void process_exit() {
 
   //Check children.  If ref_count == 0, free shared data.  Else: decrement ref_count of child
   struct process* my_pcb = cur->pcb;
-  struct list* my_children= &(my_pcb->children);
-  struct list_elem *e;
-  struct shared_data_struct * shared_data = my_pcb->shared_data;
+  struct list* my_children = &(my_pcb->children);
+  struct list_elem* e;
+  struct shared_data_struct* shared_data = my_pcb->shared_data;
   printf("%s: exit(%d)\n", cur->pcb->process_name, shared_data->shared_data_status);
 
   lock_acquire(&(my_pcb->child_list_lock));
 
   e = list_begin(my_children);
   while (e != list_end(my_children)) {
-    struct shared_data_struct* child = list_entry(e,struct shared_data_struct, elem);
+    struct shared_data_struct* child = list_entry(e, struct shared_data_struct, elem);
     lock_acquire(&(child->shared_data_lock));
     child->ref_count -= 1;
     if (child->ref_count == 0) {
       e = list_remove(&(child->elem));
       // MIGHT NEED TO ADD THIS LINE LATER lock_release(&(child->shared_data_lock));
       free(child);
-    }
-    else {
+    } else {
       lock_release(&(child->shared_data_lock));
       e = list_next(e);
     }
@@ -326,8 +324,7 @@ void process_exit() {
   if (shared_data->ref_count == 0) {
     lock_release(&(shared_data->shared_data_lock));
     free(shared_data);
-  }
-  else {
+  } else {
     lock_release(&(shared_data->shared_data_lock));
     sema_up(&(shared_data->shared_data_sema));
   }
@@ -347,12 +344,12 @@ void process_exit() {
     pagedir_activate(NULL);
     pagedir_destroy(pd);
   }
-  
+
   // Lock might be held if exiting from a file syscall
   if (!lock_held_by_current_thread(&fileop_lock)) {
     lock_acquire(&fileop_lock);
   }
-  
+
   // Allow write
   struct file* executable = cur->pcb->executable;
   if (executable != NULL) {
@@ -370,7 +367,6 @@ void process_exit() {
   cur->pcb = NULL;
   free(pcb_to_free);
 
-
   thread_exit();
 }
 
@@ -378,15 +374,14 @@ void close_and_remove_all_files(void) {
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;
 
-  while (!list_empty (&cur_pcb->fdt))
-  {
+  while (!list_empty(&cur_pcb->fdt)) {
     e = list_pop_front(&cur_pcb->fdt);
     struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
-    
+
     lock_acquire(&fileop_lock);
     file_close(fdt_entry->file);
     lock_release(&fileop_lock);
-    
+
     list_remove(&fdt_entry->elem);
     free(fdt_entry);
   }
@@ -495,7 +490,7 @@ bool load(const char* file_name, char* args, void (**eip)(void), void** esp) {
   /* Open executable file. */
   file = filesys_open(file_name);
   t->pcb->executable = file;
-  
+
   if (file == NULL) {
     printf("load: %s: open failed\n", file_name);
     goto done;
@@ -691,8 +686,7 @@ static bool setup_stack(const char* args, void** esp) {
     if (success) {
       *esp = PHYS_BASE;
       push_arguments(args, esp);
-    }
-    else
+    } else
       palloc_free_page(kpage);
   }
   return success;
@@ -705,7 +699,7 @@ void push_arguments(const char* args, void** esp) {
   char* argv[64]; // User stack pointers
 
   int argc = 0;
-  while(arg = strtok_r(rest, " ", &rest)) {
+  while (arg = strtok_r(rest, " ", &rest)) {
     *esp -= strlen(arg) + 1;
     memcpy(*esp, (void*)arg, strlen(arg) + 1);
     argv[argc] = (char*)*esp;
@@ -720,7 +714,7 @@ void push_arguments(const char* args, void** esp) {
   // Push null pointer at argv[4]
   *esp -= 4;
   memset(*esp, 0, 4);
-  
+
   // Push arg addresses
   for (int i = argc - 1; i >= 0; i--) {
     *esp -= 4;
@@ -737,7 +731,7 @@ void push_arguments(const char* args, void** esp) {
   *(int*)*esp = argc;
 
   // Fake return
-  *esp-= 4;
+  *esp -= 4;
   *(char**)*esp = 0;
 }
 
@@ -746,11 +740,9 @@ int calculate_alignment(int offset, int argc) {
   if (x % 16 == 0) {
     return 0;
   }
-  int aligned = ((x - 1)|15) + 1;
+  int aligned = ((x - 1) | 15) + 1;
   return aligned - x;
 }
-
-
 
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.

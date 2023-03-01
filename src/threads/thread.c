@@ -206,6 +206,12 @@ tid_t thread_create(const char* name, int priority, thread_func* function, void*
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  // Initialize FPU for new thread
+  uint8_t temp_fpu_state[108];
+  asm volatile("fsave (%0); fninit; fsave (%1); frstor (%2)"
+               :
+               : "g"(&temp_fpu_state), "g"(&sf->fpu_state), "g"(&temp_fpu_state));
+
   /* Add to run queue. */
   thread_unblock(t);
 
