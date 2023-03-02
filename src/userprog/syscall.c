@@ -12,6 +12,7 @@
 #include "devices/input.h"
 #include "lib/kernel/console.h"
 #include "lib/float.h"
+#include "devices/shutdown.h"
 
 #define CHECK_STACK_PTRS0(args) check_user_stack_addresses(args, 4);
 #define CHECK_STACK_PTRS1(args) check_user_stack_addresses(args + 1, 4)
@@ -63,22 +64,19 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   if (args[0] < 4) {
     switch (args[0]) {
       case SYS_HALT:
-        //TODO
+        sys_halt();
         break;
       case SYS_EXIT:
-        //TODO
         CHECK_STACK_PTRS1(args);
         f->eax = args[1];
         sys_exit(args[1]);
         break;
       case SYS_EXEC:
-        //TODO
         CHECK_STACK_PTRS1(args);
         CHECK_ARGS_PTR1(args);
         f->eax = sys_exec(args[1]);
         break;
-      case SYS_WAIT:
-        // TODO
+      case SYS_WAIT: 
         CHECK_STACK_PTRS1(args);
         f->eax = sys_wait(args[1]);
         break;
@@ -92,46 +90,38 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         f->eax = sys_create((const char*)args[1], args[2]);
         break;
       case SYS_REMOVE:
-        //TODO
         CHECK_STACK_PTRS1(args);
         CHECK_ARGS_PTR1(args);
         f->eax = sys_remove((const char*)args[1]);
         break;
       case SYS_OPEN:
-        //TODO
         CHECK_STACK_PTRS1(args);
         CHECK_ARGS_PTR1(args);
         f->eax = sys_open((const char*)args[1]);
         break;
       case SYS_FILESIZE:
-        //TODO
         CHECK_STACK_PTRS1(args);
         f->eax = sys_file_size(args[1]);
         break;
       case SYS_READ:
-        //TODO
         CHECK_STACK_PTRS3(args);
         CHECK_ARGS_PTR2(args);
         f->eax = sys_read(args[1], args[2], args[3]);
         break;
       case SYS_WRITE:
-        //TODO
         CHECK_STACK_PTRS3(args);
         CHECK_ARGS_PTR2(args);
         f->eax = sys_write(args[1], args[2], args[3]);
         break;
       case SYS_SEEK:
-        //TODO
         CHECK_STACK_PTRS2(args);
         sys_seek(args[1], args[2]);
         break;
       case SYS_TELL:
-        //TODO
         CHECK_STACK_PTRS1(args);
         f->eax = sys_tell(args[1]);
         break;
       case SYS_CLOSE:
-        //TODO
         CHECK_STACK_PTRS1(args);
         sys_close(args[1]);
         break;
@@ -140,7 +130,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
   } else {
     switch (args[0]) {
       case SYS_PRACTICE:
-        //TODO
         CHECK_STACK_PTRS1(args);
         f->eax = sys_practice(args[1]);
         break;
@@ -153,13 +142,11 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
 }
 
 void sys_halt() {
-  // TODO
+  shutdown_power_off();
 }
 
 void sys_exit(int status) {
-  // TODO
   struct thread* t = thread_current();
-  // t->pcb->status = status;
   struct shared_data_struct* shared_data = t->pcb->shared_data;
   lock_acquire(&(shared_data->shared_data_lock));
   shared_data->shared_data_status = status;
@@ -173,7 +160,6 @@ pid_t sys_exec(const char* cmd_line) {
 }
 
 int sys_wait(pid_t pid) {
-  // TODO
   int exit_status = process_wait(pid);
   return exit_status;
 }
@@ -181,17 +167,14 @@ int sys_wait(pid_t pid) {
 int sys_compute_e(int n) { return sys_sum_to_e(n); }
 
 bool sys_create(const char* file, unsigned initial_size) {
-  // TODO
   return filesys_create(file, initial_size);
 }
 
 bool sys_remove(const char* file) {
-  // TODO
   return filesys_remove(file);
 }
 
 int sys_open(const char* file) {
-  // TODO
   struct fdt_entry* fdt_entry = malloc(sizeof(struct fdt_entry));
   fdt_entry->file = filesys_open(file);
 
@@ -207,7 +190,6 @@ int sys_open(const char* file) {
 }
 
 int sys_file_size(int fd) {
-  // TODO
   struct file* file = get_file(fd);
   if (file == NULL) {
     return -1;
@@ -217,7 +199,6 @@ int sys_file_size(int fd) {
 }
 
 int sys_read(int fd, void* buffer, unsigned size) {
-  // TODO
   if (fd == 0) {
     char* input[size + 1];
     for (int i = 0; i < size; i++) {
@@ -237,7 +218,6 @@ int sys_read(int fd, void* buffer, unsigned size) {
 }
 
 int sys_write(int fd, void* buffer, unsigned size) {
-  // TODO
   if (fd == 1) {
     putbuf(buffer, size);
 
@@ -254,7 +234,6 @@ int sys_write(int fd, void* buffer, unsigned size) {
 }
 
 void sys_seek(int fd, unsigned position) {
-  // TODO
   struct file* file = get_file(fd);
   if (file == NULL) {
     return;
@@ -305,7 +284,6 @@ void check_arg_pointers(const char* arg_pointer) {
 }
 
 void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes) {
-  // TODO
   if (uaddr == NULL) {
     sys_exit(-1);
   }
