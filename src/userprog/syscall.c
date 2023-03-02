@@ -272,10 +272,11 @@ void check_arg_pointers(const char* arg_pointer) {
   while (true) {
     if (!is_user_vaddr((uint32_t*)arg_pointer_cpy)) {
       sys_exit(-1);
-    } else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*)arg_pointer_cpy) ==
-               NULL) {
+    } 
+    else if (pagedir_get_page(thread_current()->pcb->pagedir, (const void*)arg_pointer_cpy) == NULL) {
       sys_exit(-1);
     }
+    
     if (*arg_pointer_cpy == NULL) {
       break;
     }
