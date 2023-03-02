@@ -28,6 +28,12 @@ struct lock fileop_lock;
    PCB from the TCB. All TCBs in a process will have a pointer
    to the PCB, and the PCB will have a pointer to the main thread
    of the process, which is `special`. */
+
+/* PCB
+  children = list of shared data structs for each of its children.
+  max_fd = highest index in FDT.  New opened files will get fd = max_fd + 1
+  executable = file pointer to executable file.  Used to prevent other processes from writing to file after it has been loaded.
+*/
 struct process {
   /* Owned by process.c. */
   uint32_t* pagedir;          /* Page directory. */

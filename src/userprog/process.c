@@ -26,6 +26,8 @@ static bool load(const char* file_name, char* args, void (**eip)(void), void** e
 bool setup_thread(void (**eip)(void), void** esp);
 void push_arguments(const char* args, void** esp);
 int calculate_alignment(int offset, int argc);
+struct process* create_child_pcb(void);
+void close_and_remove_all_files(void);
 
 /* Initializes user programs in the system by ensuring the main
    thread has a minimal PCB so that it can execute and wait for
@@ -44,9 +46,6 @@ void userprog_init(void) {
   success = t->pcb != NULL;
   list_init(&(t->pcb->children));
   lock_init(&(t->pcb->child_list_lock));
-  // struct shared_data_struct* shared_data = (struct shared_data_struct*) malloc(sizeof(struct shared_data_struct));
-  // shared_data->ref_count = 2;
-  // t->pcb->shared_data = shared_data;
 
   lock_init(&fileop_lock);
 
@@ -59,7 +58,6 @@ struct process* create_child_pcb() {
   struct process* new_pcb = (struct process*)malloc(sizeof(struct process));
   success = pcb_success = new_pcb != NULL;
   if (success) {
-    struct thread* parent = thread_current();
     new_pcb->pagedir = NULL;
     list_init(&(new_pcb->children));
     lock_init(&(new_pcb->child_list_lock));
@@ -67,7 +65,6 @@ struct process* create_child_pcb() {
     list_init(&(new_pcb->fdt));
     new_pcb->max_fd = 2;
 
-    pid_t pid;
   }
   return new_pcb;
 }
@@ -88,13 +85,24 @@ pid_t process_execute(const char* file_name) {
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
-  // char* tmp = malloc(strlen((char*)file_name) + 1);
   char tmp[strlen(file_name) + 1];
   strlcpy(tmp, file_name, strlen(file_name) + 1);
 
   char* tmpPointer;
   file_name = strtok_r(tmp, " ", &tmpPointer);
 
+  /*Creating shared_data struct to pass into start_process.  
+    After creating struct, parent adds shared data struct to its list of children(stored in parents pcb)
+    Parent creates a new pcb for child process.
+    Parent creates shared data struct that gets passed to start process, to load process.
+    Load Status indicates if the child process loaded properly.
+    Shared data status indicates the child processes exit status code for parent to see
+    Ref_count lets parent and child know if they can free the shared_data_struct
+    Parent waiting indicates if the parent has already called wait on the child process.
+    Initialize semaphore and lock on shared data struct.  
+    Lock makes sure only 1 process (parent or child) can read/modify data at a time
+    Semaphore used for child process to let parent process know 1. They have finished loading 2. They have exited if parent called wait
+  */
   struct process* child_pcb = create_child_pcb();
 
   //Creating struct to pass into start_process
@@ -110,22 +118,24 @@ pid_t process_execute(const char* file_name) {
   sema_init(&(start_process_args->shared_data_sema), 0);
   lock_init(&(start_process_args->shared_data_lock));
 
-  //Add shared_data struct to parent/my pcb list
+  /* Parent adds this child shared_data struct to its list of children */
   struct process* parent_pcb = thread_current()->pcb;
   lock_acquire(&(parent_pcb->child_list_lock));
   struct list* parents_children_list = &(parent_pcb->children);
   struct list_elem new_elem;
   start_process_args->elem = new_elem;
 
-  size_t num_elems = list_size(parents_children_list);
   list_push_front(parents_children_list, &(start_process_args->elem));
-  num_elems = list_size(parents_children_list);
   lock_release(&(parent_pcb->child_list_lock));
 
   /* Create a new thread to execute FILE_NAME. */
+  /* Passing shared_data struct to start_process that creates/starts the new process */
   tid = thread_create(file_name, PRI_DEFAULT, start_process, (void*)start_process_args);
 
-  //Parent waiting until load happens and child process calls sema_up
+  /* Parent is now waiting for child process to finish loading (in start_process).
+  When child finishes loading, it calls sema_up.  The parent can then check if the child process could not load.
+  If child process failed, return -1 instead of the process id 
+  */
   sema_down(&(start_process_args->shared_data_sema));
 
   //Check if child errored on load
@@ -146,7 +156,10 @@ pid_t process_execute(const char* file_name) {
 /* A thread function that loads a user process and starts it
    running. */
 static void start_process(void* start_process_args) {
-  //Cast void * input, and get variables from struct
+  /* The start process function is passed into the thread_create function from process_execute.  
+  The start_process_args is the shared data struct used for the parent and child process to communicate.
+  This new process gets its file name and already initialized pcb from this struct.
+  */
   struct shared_data_struct* args_struct = start_process_args;
   char* file_name_ = args_struct->fn_copy;
   struct process* pcb = args_struct->pcb;
@@ -181,6 +194,7 @@ static void start_process(void* start_process_args) {
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
+    //If success = true, we can let the parent know by setting the shared data struct load_status = 0, then calling sema_up
     success = load(file_name, args, &if_.eip, &if_.esp);
   }
 
@@ -196,15 +210,13 @@ static void start_process(void* start_process_args) {
   /* Clean up. Exit on failure or jump to userspace */
   palloc_free_page(args);
   if (!success) {
-    // printf("%s\n", "Failed to free page");
     lock_acquire(&args_struct->shared_data_lock);
     sema_up(&(args_struct->shared_data_sema));
-    //args_struct->shared_data_status already initialized to -1
     lock_release(&args_struct->shared_data_lock);
     thread_exit();
   }
 
-  //Program loaded properly. Let the parent know.
+  /* We know the process has succesffuly loaded.  Let parent know by setting load_status to 0 and calling sema_up. */
   lock_acquire(&(args_struct->shared_data_lock));
   pcb->shared_data = args_struct;
   args_struct->load_status = 0;
@@ -237,9 +249,22 @@ static void start_process(void* start_process_args) {
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait(pid_t child_pid) {
-  // sema_down(&temporary);
   struct thread* cur = thread_current();
   struct process* my_pcb = cur->pcb;
+
+  /*Parent needs to check it's children for a shared data struct with the matching child_pid.  Acquire the list lock, loop through children. 
+    If child found:
+      check if parent_waiting == true.  If so, the current process has called wait on this child twice and should error.
+    Else: 
+      Set child's parent_waiting = true, so process won't call wait on it again.  Call sema_down on child's shared data struct.
+      If child has already exited, semaphore value is already 1, so calling sema_down does not block the parent. 
+      If child has not already exited, sema_down blocks until child calls sema_up before exiting.
+      After sema_down unblocks, check the shared data struct for the child's exit status.
+      Decrement the ref count to the shared_data struct because parent doesn't need it anymore.  
+      Since the child already exited, the ref_count should be 0.  If not 0, then we've done something wrong.
+      We can now free the shared data struct.  We must remove it from the children's list first to prevent dangling pointers. 
+      Lastly, return the child's exit status
+  */
   struct list* my_children = &(my_pcb->children);
   struct list_elem* e;
   lock_acquire(&(my_pcb->child_list_lock));
@@ -276,7 +301,6 @@ int process_wait(pid_t child_pid) {
       lock_release(&(child->shared_data_lock));
       e = list_next(e);
     }
-    //MIGHT NEED TO RELEASE CHILD LOCK HERE TOO. NOT SURE
   }
   lock_release(&(my_pcb->child_list_lock));
   return -1;
@@ -300,6 +324,9 @@ void process_exit() {
   struct shared_data_struct* shared_data = my_pcb->shared_data;
   printf("%s: exit(%d)\n", cur->pcb->process_name, shared_data->shared_data_status);
 
+  /* Since process is exiting, it should decrement the ref counts on all of its children's shared_data structs.
+  If the ref count = 0, the child no longer needs the shared_data struct either so we should remove it from the list (to prevent dangling pointers), then free it.
+  */
   lock_acquire(&(my_pcb->child_list_lock));
 
   e = list_begin(my_children);
@@ -309,16 +336,17 @@ void process_exit() {
     child->ref_count -= 1;
     if (child->ref_count == 0) {
       e = list_remove(&(child->elem));
-      // MIGHT NEED TO ADD THIS LINE LATER lock_release(&(child->shared_data_lock));
       free(child);
     } else {
       lock_release(&(child->shared_data_lock));
       e = list_next(e);
     }
-    // lock_release(&(child->shared_data_lock));
   }
   lock_release(&(cur->pcb->child_list_lock));
 
+  /* Now parent must let it's parent process know it is exiting.  It decrements it's own shared data ref count.  If ref_count = 0, can free shared data.
+  If ref_count not 0, call sema_up so if the parent called/will call wait on this process, it know it can get the exit status from the shared_data struct.
+  */
   lock_acquire(&(shared_data->shared_data_lock));
   shared_data->ref_count -= 1;
   if (shared_data->ref_count == 0) {
@@ -370,6 +398,7 @@ void process_exit() {
   thread_exit();
 }
 
+// Deletes the fdt by closing each file and freeing the entry
 void close_and_remove_all_files(void) {
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;

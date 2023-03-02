@@ -13,6 +13,7 @@
 #include "lib/kernel/console.h"
 #include "lib/float.h"
 #include "devices/shutdown.h"
+#include "threads/malloc.h"
 
 #define CHECK_STACK_PTRS0(args) check_user_stack_addresses(args, 4);
 #define CHECK_STACK_PTRS1(args) check_user_stack_addresses(args + 1, 4)
@@ -24,7 +25,7 @@
 
 static void syscall_handler(struct intr_frame*);
 
-// System calls
+/* SYSTEM CALLS */
 void sys_halt(void);
 void sys_exit(int status);
 pid_t sys_exec(const char* cmd_line);
@@ -41,10 +42,16 @@ int sys_practice(int i);
 void sys_seek(int fd, unsigned position);
 unsigned sys_tell(int fd);
 
+/* HELPER FUNCTIONS */
+
 // User pointer validation
 void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes);
 void check_arg_pointers(const char* arg_pointer);
 
+// Removes file from fdt and frees
+void remove_file(int fd);
+
+// Get file from fdt
 struct file* get_file(int fd);
 
 void syscall_init(void) { intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); }
@@ -74,7 +81,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_EXEC:
         CHECK_STACK_PTRS1(args);
         CHECK_ARGS_PTR1(args);
-        f->eax = sys_exec(args[1]);
+        f->eax = sys_exec((const char*)args[1]);
         break;
       case SYS_WAIT: 
         CHECK_STACK_PTRS1(args);
@@ -106,12 +113,12 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_READ:
         CHECK_STACK_PTRS3(args);
         CHECK_ARGS_PTR2(args);
-        f->eax = sys_read(args[1], args[2], args[3]);
+        f->eax = sys_read(args[1], (void*)args[2], args[3]);
         break;
       case SYS_WRITE:
         CHECK_STACK_PTRS3(args);
         CHECK_ARGS_PTR2(args);
-        f->eax = sys_write(args[1], args[2], args[3]);
+        f->eax = sys_write(args[1], (void*)args[2], args[3]);
         break;
       case SYS_SEEK:
         CHECK_STACK_PTRS2(args);
@@ -145,6 +152,9 @@ void sys_halt() {
   shutdown_power_off();
 }
 
+/* Current process is done.  Set it's exit status in shared data.  
+   Process_exit will free pcb, and free shared_data if ref_cnt == 0
+*/
 void sys_exit(int status) {
   struct thread* t = thread_current();
   struct shared_data_struct* shared_data = t->pcb->shared_data;
@@ -201,7 +211,7 @@ int sys_file_size(int fd) {
 int sys_read(int fd, void* buffer, unsigned size) {
   if (fd == 0) {
     char* input[size + 1];
-    for (int i = 0; i < size; i++) {
+    for (unsigned i = 0; i < size; i++) {
       input[i] = input_getc();
     }
     input[size] = '\0';
@@ -221,7 +231,6 @@ int sys_write(int fd, void* buffer, unsigned size) {
   if (fd == 1) {
     putbuf(buffer, size);
 
-    // Not sure what to return when writing to the console
     return size;
   }
 
@@ -263,6 +272,7 @@ void sys_close(int fd) {
 
 int sys_practice(int i) { return ++i; }
 
+// Checks that each byte of the user buffer is valid
 void check_arg_pointers(const char* arg_pointer) {
   char* arg_pointer_cpy = arg_pointer;
   if (arg_pointer_cpy == NULL) {
@@ -284,6 +294,7 @@ void check_arg_pointers(const char* arg_pointer) {
   }
 }
 
+// Exits if user stack has invalid memory
 void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes) {
   if (uaddr == NULL) {
     sys_exit(-1);
@@ -300,6 +311,7 @@ void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes) {
   }
 }
 
+// Gets file from file descriptor table
 struct file* get_file(int fd) {
   if (fd == 0 || fd == 1) {
     return NULL;
