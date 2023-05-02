@@ -21,7 +21,7 @@ struct process;
 struct shared_data_struct;
 
 // Global lock for all file operations
-struct lock fileop_lock;
+// struct lock fileop_lock;
 
 /* The process control block for a given process. Since
    there can be multiple threads per process, we need a separate

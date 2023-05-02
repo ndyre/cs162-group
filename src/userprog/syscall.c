@@ -89,7 +89,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
     }
   } else if (args[0] >= 4 && args[0] < 13) {
-    lock_acquire(&fileop_lock);
+    // lock_acquire(&fileop_lock);
     switch (args[0]) {
       case SYS_CREATE:
         CHECK_STACK_PTRS2(args);
@@ -133,7 +133,7 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         sys_close(args[1]);
         break;
     }
-    lock_release(&fileop_lock);
+    // lock_release(&fileop_lock);
   } else {
     switch (args[0]) {
       case SYS_PRACTICE:
