@@ -28,6 +28,8 @@ struct inode_disk {
   block_sector_t direct_ptrs[INODE_DIRECT];
   block_sector_t single_indirect_ptr;
   block_sector_t double_indirect_ptr;
+  //TODO Add is_dir. Check if need to decrease num direct pointers
+  // bool is_dir;
 };
 
 /* In-memory inode. */
@@ -39,19 +41,24 @@ struct inode {
   int deny_write_cnt;     /* 0: writes ok, >0: deny writes. */
   struct lock inode_lock;
   struct lock resize_lock;
+  bool is_dir;
 };
 
 static bool inode_resize(struct inode_disk*, off_t size);
 static bool inode_allocate(struct inode_disk*, size_t sectors);
 static void inode_free(struct inode_disk*, size_t sectors);
 
-static struct inode_disk* get_disk_inode(const struct inode* inode) {
+struct inode_disk* get_disk_inode(struct inode* inode) {
   struct inode_disk* id = malloc(sizeof(struct inode_disk));
   if (id == NULL) {
     return NULL;
   }
   block_read(fs_device, inode->sector, id);
   return id;
+}
+
+bool get_is_dir(struct inode* inode) {
+  return inode->is_dir;
 }
 
 /* Returns the block device sector that contains byte offset POS

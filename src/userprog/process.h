@@ -49,6 +49,7 @@ struct process {
   struct shared_data_struct* shared_data;
   pid_t pid;
   struct lock child_list_lock;
+  struct dir* cwd;
 };
 
 struct shared_data_struct {
@@ -68,6 +69,8 @@ struct fdt_entry {
   struct list_elem elem;
   struct file* file;
   int fd;
+  //TODO: create is_dir var
+  bool is_dir;
 };
 
 void userprog_init(void);

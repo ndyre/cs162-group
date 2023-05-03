@@ -46,6 +46,7 @@ void userprog_init(void) {
   success = t->pcb != NULL;
   list_init(&(t->pcb->children));
   lock_init(&(t->pcb->child_list_lock));
+  
 
   // lock_init(&fileop_lock);
 

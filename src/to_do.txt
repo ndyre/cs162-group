@@ -1,0 +1,85 @@
+process.c 
+
+struct process {struct *dir cwd}
+userprog_init() { cwd = dir_open_root}
+process_exec { child_pcb->cwd = parent_pcb->cwd}
+----------------------
+process.h 
+fdt_entry { bool is_dir}
+!!! need to make sure is correctly set
+----------------------
+inode.c 
+
+struct inode_disk {bool is_dir}
+
+--------------------
+filesys.c 
+
+filesys_init() {
+    add dir entries for '.' and '..'
+}
+
+filesys_create(const char* name, off_t initial_size)
+    call resolve path to get directory
+    create inode for file
+    set is_dir = false
+    !!! How to get sector?
+    !!! initalize lock for inode
+
+filesys_open()
+    resolve path to get inode
+    if is_dir, call dir_open()
+filesys_close()
+
+filesys_remove()
+    resolve path
+    if is_dir:
+        if name == "/", '.', or '..': error. can't delete root dir
+        if dir open_cnt > 0: return false 
+        if dir is_cwd: return false
+        if dir has entries other than '.' and '..': return false
+        else: dir_remove()
+
+
+-----------------------
+syscall.c
+    get_file() {
+        check if fdt_entry->is_dir is true. If so, return NULL}
+    sys_close() {
+        if is file, call file_close !!!!!!remove file
+        if is dir, call dir_close()
+    }
+
+    bool chdir(const char *dir) {
+        dir* directory = resolve path 
+        if exists: cur_pcb->cwd = directory. return true 
+        else: return false
+    }
+
+    bool mkdir(const char *dir) {
+        resolve path 
+        dir_create 
+        add directory to fdt w/ dir_add setting is_dir to true
+        Add '.' and '..' entries
+        !!!! Resizing?!
+    }
+
+    bool readdir(int fd, char* name) {
+        resolve_path
+        if not is_dir: error
+        !!!!!!!
+    }
+
+    bool isdir(int fd){
+        get fd. check if is_dir=true
+    }
+
+    int inumber(int fd){
+
+    }
+-----------------------
+directory.c
+
+dir_add(bool is_dir){
+    if is_dir, e.is_dir = true
+}
