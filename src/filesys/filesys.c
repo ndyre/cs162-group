@@ -191,6 +191,7 @@ struct dir* resolve_path(char* name) {
       printf("error");
     }
   }
+  
   return curr_dir;
   //Don't forget to free inode_disk
 }
