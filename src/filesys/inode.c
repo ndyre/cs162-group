@@ -11,7 +11,7 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define INODE_DIRECT 124
+#define INODE_DIRECT 123
 #define BLOCK_POINTERS_PER_SECTOR 128
 
 struct lock inode_list_lock;
@@ -29,7 +29,8 @@ struct inode_disk {
   block_sector_t single_indirect_ptr;
   block_sector_t double_indirect_ptr;
   //TODO Add is_dir. Check if need to decrease num direct pointers
-  // bool is_dir;
+  bool is_dir;
+  char unused[3];
 };
 
 /* In-memory inode. */
@@ -60,6 +61,10 @@ struct inode_disk* get_disk_inode(struct inode* inode) {
 bool get_is_dir(struct inode* inode) {
   return inode->is_dir;
 }
+
+// bool get_file_is_dir(struct file* file) {
+//   return file->inode->is_dir;
+// }
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -125,7 +130,7 @@ void inode_init(void) {
    device.
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
-bool inode_create(block_sector_t sector, off_t length) {
+bool inode_create(block_sector_t sector, off_t length, bool is_dir) {
   struct inode_disk* disk_inode = NULL;
   bool success = false;
 
@@ -140,6 +145,7 @@ bool inode_create(block_sector_t sector, off_t length) {
     size_t sectors = bytes_to_sectors(length);
     disk_inode->length = length;
     disk_inode->magic = INODE_MAGIC;
+    disk_inode->is_dir = is_dir;
     if (inode_allocate(disk_inode, sectors)) {
       block_write(fs_device, sector, disk_inode);
       success = true;
@@ -281,6 +287,11 @@ struct inode* inode_open(block_sector_t sector) {
   inode->removed = false;
   lock_init(&inode->inode_lock);
   lock_init(&inode->resize_lock);
+  //Is this okay?!
+  struct inode_disk* id = get_disk_inode(inode);
+  inode->is_dir = id->is_dir;
+  free(id);
+  //
   return inode;
 }
 

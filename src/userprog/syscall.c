@@ -14,6 +14,7 @@
 #include "lib/float.h"
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
+#include "filesys/inode.h"
 
 #define CHECK_STACK_PTRS0(args) check_user_stack_addresses(args, 4);
 #define CHECK_STACK_PTRS1(args) check_user_stack_addresses(args + 1, 4)
@@ -41,6 +42,11 @@ void sys_close(int fd);
 int sys_practice(int i);
 void sys_seek(int fd, unsigned position);
 unsigned sys_tell(int fd);
+bool sys_chdir(const char* name);
+bool sys_mkdir(const char* name);
+bool sys_readdir(int fd, char* name); 
+bool sys_isdir(int fd);
+int sys_inumber(int fd);
 
 /* HELPER FUNCTIONS */
 
@@ -144,8 +150,50 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         CHECK_STACK_PTRS1(args);
         f->eax = sys_compute_e(args[1]);
         break;
+      case SYS_CHDIR:
+        CHECK_STACK_PTRS1(args);
+        CHECK_ARGS_PTR1(args);
+        f->eax = sys_chdir((const char*) args[1]);
+        break;
+      case SYS_MKDIR:
+        CHECK_STACK_PTRS1(args);
+        CHECK_ARGS_PTR1(args);
+        f->eax = sys_mkdir((const char*) args[1]);
+        break;
+      case SYS_READDIR:
+        CHECK_STACK_PTRS2(args);
+        CHECK_ARGS_PTR2(args);
+        f->eax = sys_readdir(args[1], args[2]);
+        break;
+      case SYS_ISDIR:
+        f->eax = sys_isdir(args[1]);
+        break;
+      case SYS_INUMBER:
+        f->eax = sys_inumber(args[1]);
+        break;
     }
   }
+}
+
+bool sys_mkdir(const char* name) {
+  return filesys_mkdir(name);
+}
+
+bool sys_chdir(const char* name) {
+  
+  return;
+}
+
+bool sys_readdir(int fd, char* name) {
+  return;
+}
+
+bool sys_isdir(int fd) {
+  return;
+}
+
+int sys_inumber(int fd) {
+  return;
 }
 
 void sys_halt() {
@@ -262,11 +310,18 @@ unsigned sys_tell(int fd) {
 
 void sys_close(int fd) {
   struct file* file = get_file(fd);
+  struct inode* inode;
   if (file == NULL) {
     return;
   }
-  file_close(file);
 
+  inode = file_get_inode(file);
+  if (get_is_dir(inode)) {
+    dir_close(file);
+  }
+  else {
+    file_close(file);
+  }
   remove_file(fd);
 }
 

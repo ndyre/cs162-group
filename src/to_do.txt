@@ -29,6 +29,7 @@ filesys_create(const char* name, off_t initial_size)
 filesys_open()
     resolve path to get inode
     if is_dir, call dir_open()
+    
 filesys_close()
 
 filesys_remove()
