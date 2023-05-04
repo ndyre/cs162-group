@@ -402,16 +402,17 @@ void process_exit() {
 void close_and_remove_all_files(void) {
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;
+  struct fdt_entry* fdt_entry;
 
   while (!list_empty(&cur_pcb->fdt)) {
     e = list_pop_front(&cur_pcb->fdt);
-    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    fdt_entry = list_entry(e, struct fdt_entry, elem);
 
     // lock_acquire(&fileop_lock);
     file_close(fdt_entry->file);
     // lock_release(&fileop_lock);
 
-    list_remove(&fdt_entry->elem);
+    // list_remove(&fdt_entry->elem);
     free(fdt_entry);
   }
 }
