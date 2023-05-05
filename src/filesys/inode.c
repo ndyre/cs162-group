@@ -37,7 +37,7 @@ struct inode {
   bool removed;           /* True if deleted, false otherwise. */
   int deny_write_cnt;     /* 0: writes ok, >0: deny writes. */
   struct lock inode_lock;
-  struct lock resize_lock;
+  // struct lock resize_lock;
 };
 
 /* Buffer cache entry stored in memory. */
@@ -219,6 +219,8 @@ void cache_read(struct block* fs_device, block_sector_t sector, void* buffer_, o
   lock_release(&buffer_cache_lock);
 }
 
+/* Writes SIZE bytes to the buffer cache at SECTOR starting at 
+   OFFSET. */
 void cache_write(struct block* fs_device, block_sector_t sector, void* buffer_, off_t size, off_t offset) {
   uint8_t* buffer = buffer_;
   struct list_elem* e;
@@ -346,7 +348,7 @@ struct inode* inode_open(block_sector_t sector) {
   inode->deny_write_cnt = 0;
   inode->removed = false;
   lock_init(&inode->inode_lock);
-  lock_init(&inode->resize_lock);
+  // lock_init(&inode->resize_lock);
   return inode;
 }
 
@@ -416,7 +418,7 @@ off_t inode_read_at(struct inode* inode, void* buffer_, off_t size, off_t offset
   struct inode_disk* id = get_disk_inode(inode);
   ASSERT(id != NULL);
 
-  lock_acquire(&inode->resize_lock);
+  lock_acquire(&inode->inode_lock);
   while (size > 0) {
     /* Disk sector to read, starting byte offset within sector. */
     block_sector_t sector_idx = byte_to_sector(id, offset);
@@ -454,7 +456,7 @@ off_t inode_read_at(struct inode* inode, void* buffer_, off_t size, off_t offset
     offset += chunk_size;
     bytes_read += chunk_size;
   }
-  lock_release(&inode->resize_lock);
+  lock_release(&inode->inode_lock);
   free(bounce);
   free(id);
 
@@ -471,20 +473,18 @@ off_t inode_write_at(struct inode* inode, const void* buffer_, off_t size, off_t
   off_t bytes_written = 0;
   uint8_t* bounce = NULL;
 
+  struct inode_disk* id = get_disk_inode(inode);
+  ASSERT(id != NULL);
+  
   lock_acquire(&inode->inode_lock);
   if (inode->deny_write_cnt) {
     lock_release(&inode->inode_lock);
     return 0;
   }
-  lock_release(&inode->inode_lock);
 
-  struct inode_disk* id = get_disk_inode(inode);
-  ASSERT(id != NULL);
-
-  lock_acquire(&inode->resize_lock);
   if (offset + size > id->length) {
     if (!inode_resize(id, offset + size)) {
-      lock_release(&inode->resize_lock);
+      lock_release(&inode->inode_lock);
       return 0;
     }
     cache_write(fs_device, inode->sector, id, BLOCK_SECTOR_SIZE, 0);
@@ -533,7 +533,7 @@ off_t inode_write_at(struct inode* inode, const void* buffer_, off_t size, off_t
     offset += chunk_size;
     bytes_written += chunk_size;
   }
-  lock_release(&inode->resize_lock);
+  lock_release(&inode->inode_lock);
   free(bounce);
   free(id);
 
