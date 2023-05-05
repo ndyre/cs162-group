@@ -248,16 +248,13 @@ int sys_open(const char* file) {
     fdt_entry->dir = f;
   }
   else {
-    fdt_entry->file = file;
+    fdt_entry->file = f;
     fdt_entry->is_dir = false;
   }
-  fdt_entry->file = filesys_open(file);
-  if (fdt_entry->file == NULL) {
+  
+  if (fdt_entry->file == NULL && fdt_entry->dir==NULL) {
     return -1;
   }
-  // if (fdt_entry->file == NULL && fdt_entry->dir==NULL) {
-  //   return -1;
-  // }
 
   struct thread* t = thread_current();
   fdt_entry->fd = t->pcb->max_fd++;
