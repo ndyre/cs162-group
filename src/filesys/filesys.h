@@ -20,7 +20,7 @@ bool filesys_remove(const char* name);
 
 bool filesys_mkdir(const char* path);
 bool filesys_chdir(const char* path);
-bool filesys_readdir(int fd, char* path);
+bool filesys_readdir(int fd, char* name_buf);
 bool filesys_isdir(int fd);
 int filesys_inumber(int fd);
 

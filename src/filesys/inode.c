@@ -61,6 +61,13 @@ struct inode_disk* get_disk_inode(struct inode* inode) {
 bool get_is_dir(struct inode* inode) {
   return inode->is_dir;
 }
+// bool acquire_inode_lock(struct inode* inode) {
+//   lock_acquire(&inode->inode_lock);
+// }
+
+// bool release_inode_lock(struct inode* inode) {
+//   lock_release(&inode->inode_lock);
+// }
 
 // bool get_file_is_dir(struct file* file) {
 //   return file->inode->is_dir;
