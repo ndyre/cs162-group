@@ -125,6 +125,8 @@ pid_t process_execute(const char* file_name) {
   struct list* parents_children_list = &(parent_pcb->children);
   struct list_elem new_elem;
   start_process_args->elem = new_elem;
+  start_process_args->pcb->cwd = parent_pcb->cwd;
+
 
   list_push_front(parents_children_list, &(start_process_args->elem));
   lock_release(&(parent_pcb->child_list_lock));
@@ -147,6 +149,7 @@ pid_t process_execute(const char* file_name) {
   }
   start_process_args->pid = tid;
   start_process_args->pcb->pid = tid;
+  dir_open(parent_pcb->cwd);
   lock_release(&(start_process_args->shared_data_lock));
 
   if (tid == TID_ERROR)
@@ -407,12 +410,16 @@ void close_and_remove_all_files(void) {
   while (!list_empty(&cur_pcb->fdt)) {
     e = list_pop_front(&cur_pcb->fdt);
     struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
-
-    // lock_acquire(&fileop_lock);
+    if (fdt_entry->is_dir) {
+      dir_close(fdt_entry->dir);
+    }
+    else {
     file_close(fdt_entry->file);
+    }
+    // lock_acquire(&fileop_lock);
     // lock_release(&fileop_lock);
 
-    list_remove(&fdt_entry->elem);
+    // list_remove(&fdt_entry->elem);
     free(fdt_entry);
   }
 }

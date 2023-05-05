@@ -68,6 +68,7 @@ struct shared_data_struct {
 struct fdt_entry {
   struct list_elem elem;
   struct file* file;
+  struct dir* dir;
   int fd;
   //TODO: create is_dir var
   bool is_dir;

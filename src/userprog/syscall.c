@@ -15,6 +15,7 @@
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
 #include "filesys/inode.h"
+#include "filesys/directory.h"
 
 #define CHECK_STACK_PTRS0(args) check_user_stack_addresses(args, 4);
 #define CHECK_STACK_PTRS1(args) check_user_stack_addresses(args + 1, 4)
@@ -176,24 +177,24 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
 }
 
 bool sys_mkdir(const char* name) {
+  if (strlen(name) == 0) {return false;}
   return filesys_mkdir(name);
 }
 
 bool sys_chdir(const char* name) {
-  
-  return;
+  return filesys_chdir(name);
 }
 
 bool sys_readdir(int fd, char* name) {
-  return;
+  return filesys_readdir(fd,name);
 }
 
 bool sys_isdir(int fd) {
-  return;
+  return filesys_isdir(fd);
 }
 
 int sys_inumber(int fd) {
-  return;
+  return filesys_inumber(fd);
 }
 
 void sys_halt() {
@@ -234,11 +235,29 @@ bool sys_remove(const char* file) {
 
 int sys_open(const char* file) {
   struct fdt_entry* fdt_entry = malloc(sizeof(struct fdt_entry));
+  fdt_entry->file = NULL;
+  fdt_entry->dir = NULL;
+  struct file* f = filesys_open(file);
+  if (f == NULL) {
+    return -1;
+  }
+  struct inode* inode = file_get_inode(f);
+  if (get_is_dir(inode)) {
+    fdt_entry->is_dir = true;
+    // fdt_entry->file = NULL;
+    fdt_entry->dir = f;
+  }
+  else {
+    fdt_entry->file = file;
+    fdt_entry->is_dir = false;
+  }
   fdt_entry->file = filesys_open(file);
-
   if (fdt_entry->file == NULL) {
     return -1;
   }
+  // if (fdt_entry->file == NULL && fdt_entry->dir==NULL) {
+  //   return -1;
+  // }
 
   struct thread* t = thread_current();
   fdt_entry->fd = t->pcb->max_fd++;
@@ -281,9 +300,8 @@ int sys_write(int fd, void* buffer, unsigned size) {
 
     return size;
   }
-
   struct file* file = get_file(fd);
-  if (file == NULL) {
+  if (file == NULL || sys_isdir(fd)) {
     return -1;
   }
 
