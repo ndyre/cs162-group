@@ -1,0 +1,87 @@
+Passing
+pintos-test create-normal	
+pintos-test create-empty	
+pintos-test create-null	
+pintos-test create-bad-ptr	
+pintos-test create-exists	
+pintos-test create-bound	
+pintos-test open-normal	
+pintos-test open-missing	
+pintos-test open-boundary	
+pintos-test open-empty	
+pintos-test open-null	
+pintos-test open-bad-ptr	
+pintos-test open-twice	
+pintos-test close-normal	
+pintos-test close-twice	
+pintos-test close-stdin	
+pintos-test close-stdout	
+pintos-test close-bad-fd	
+pintos-test read-normal	
+pintos-test read-bad-ptr	
+pintos-test read-boundary	
+pintos-test read-zero	
+pintos-test read-stdout	
+pintos-test read-bad-fd	
+pintos-test write-normal	
+pintos-test write-bad-ptr	
+pintos-test write-boundary	
+pintos-test write-zero	
+pintos-test write-stdin	
+pintos-test write-bad-fd	
+pintos-test tell-bad-fd	
+pintos-test tell-normal	
+
+pintos-test grow-create	
+pintos-test grow-file-size	
+pintos-test grow-root-lg	
+pintos-test grow-root-sm	
+pintos-test grow-seq-lg	
+pintos-test grow-seq-sm	
+pintos-test grow-sparse	
+pintos-test grow-tell	
+pintos-test grow-two-files	
+
+pintos-test dir-empty-name	
+pintos-test dir-under-file	
+pintos-test dir-open	
+pintos-test dir-mkdir
+
+
+
+
+Failing
+pintos-test syn-rw	
+pintos-test create-long	
+pintos-test dir-mk-tree	
+pintos-test dir-over-file	
+pintos-test dir-rm-cwd	
+pintos-test dir-rm-parent	
+pintos-test dir-rm-root	
+pintos-test dir-rm-tree	
+pintos-test dir-rmdir	
+pintos-test dir-vine	
+pintos-test grow-dir-lg	
+pintos-test dir-empty-name-persistence	
+pintos-test dir-mk-tree-persistence	
+pintos-test dir-mkdir-persistence	
+pintos-test dir-open-persistence	
+pintos-test dir-over-file-persistence	
+pintos-test dir-rm-cwd-persistence	
+pintos-test dir-rm-parent-persistence	
+pintos-test dir-rm-root-persistence	
+pintos-test dir-rm-tree-persistence	
+pintos-test dir-rmdir-persistence	
+pintos-test dir-under-file-persistence	
+pintos-test dir-vine-persistence	
+pintos-test grow-create-persistence	
+pintos-test grow-dir-lg-persistence	
+pintos-test grow-file-size-persistence	
+pintos-test grow-root-lg-persistence	
+pintos-test grow-root-sm-persistence	
+pintos-test grow-seq-lg-persistence	
+pintos-test grow-seq-sm-persistence	
+pintos-test grow-sparse-persistence	
+pintos-test grow-tell-persistence	
+pintos-test grow-two-files-persistence	
+pintos-test syn-rw-persistence	
