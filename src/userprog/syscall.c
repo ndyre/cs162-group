@@ -56,10 +56,10 @@ void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes);
 void check_arg_pointers(const char* arg_pointer);
 
 // Removes file from fdt and frees
-void remove_file(int fd);
+void remove_fdt_entry(int fd);
 
 // Get file from fdt
-struct file* get_file(int fd);
+struct fdt_entry* get_fdt_entry(int fd);
 
 void syscall_init(void) { intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); }
 
@@ -186,15 +186,35 @@ bool sys_chdir(const char* name) {
 }
 
 bool sys_readdir(int fd, char* name) {
-  return filesys_readdir(fd,name);
+  bool success = false;
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry != NULL && fdt_entry->is_dir) {
+    success = dir_readdir(fdt_entry->dir, name);
+  }
+  return success;
 }
 
 bool sys_isdir(int fd) {
-  return filesys_isdir(fd);
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL) {
+    return false;
+  }
+  return fdt_entry->is_dir;
 }
 
 int sys_inumber(int fd) {
-  return filesys_inumber(fd);
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL) {
+    return -1;
+  }
+
+  struct inode* inode;
+  if (fdt_entry->is_dir) {
+    inode = dir_get_inode(fdt_entry->dir);
+  } else {
+    inode = file_get_inode(fdt_entry->file);
+  }
+  return inode_get_inumber(inode);
 }
 
 void sys_halt() {
@@ -264,12 +284,12 @@ int sys_open(const char* file) {
 }
 
 int sys_file_size(int fd) {
-  struct file* file = get_file(fd);
-  if (file == NULL) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL || fdt_entry->is_dir) {
     return -1;
   }
 
-  return file_length(file);
+  return file_length(fdt_entry->file);
 }
 
 int sys_read(int fd, void* buffer, unsigned size) {
@@ -283,12 +303,12 @@ int sys_read(int fd, void* buffer, unsigned size) {
     return size;
   }
 
-  struct file* file = get_file(fd);
-  if (file == NULL) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL || fdt_entry->is_dir) {
     return -1;
   }
 
-  return file_read(file, buffer, size);
+  return file_read(fdt_entry->file, buffer, size);
 }
 
 int sys_write(int fd, void* buffer, unsigned size) {
@@ -297,47 +317,45 @@ int sys_write(int fd, void* buffer, unsigned size) {
 
     return size;
   }
-  struct file* file = get_file(fd);
-  if (file == NULL || sys_isdir(fd)) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL || fdt_entry->is_dir) {
     return -1;
   }
 
-  return file_write(file, buffer, size);
+  return file_write(fdt_entry->file, buffer, size);
 }
 
 void sys_seek(int fd, unsigned position) {
-  struct file* file = get_file(fd);
-  if (file == NULL) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL || fdt_entry->is_dir) {
     return;
   }
 
-  file_seek(file, position);
+  file_seek(fdt_entry->file, position);
 }
 
 unsigned sys_tell(int fd) {
-  struct file* file = get_file(fd);
-  if (file == NULL) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL || fdt_entry->is_dir) {
     return -1;
   }
 
-  return file_tell(file);
+  return file_tell(fdt_entry->file);
 }
 
 void sys_close(int fd) {
-  struct file* file = get_file(fd);
-  struct inode* inode;
-  if (file == NULL) {
+  struct fdt_entry* fdt_entry = get_fdt_entry(fd);
+  if (fdt_entry == NULL) {
     return;
   }
 
-  inode = file_get_inode(file);
-  if (get_is_dir(inode)) {
-    dir_close(file);
+  if (fdt_entry->is_dir) {
+    dir_close(fdt_entry->dir);
   }
   else {
-    file_close(file);
+    file_close(fdt_entry->file);
   }
-  remove_file(fd);
+  remove_fdt_entry(fd);
 }
 
 int sys_practice(int i) { return ++i; }
@@ -382,24 +400,25 @@ void check_user_stack_addresses(uint32_t* uaddr, size_t num_bytes) {
 }
 
 // Gets file from file descriptor table
-struct file* get_file(int fd) {
+struct fdt_entry* get_fdt_entry(int fd) {
   if (fd == 0 || fd == 1) {
     return NULL;
   }
 
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;
+  struct fdt_entry* fdt_entry = NULL;
   for (e = list_begin(&cur_pcb->fdt); e != list_end(&cur_pcb->fdt); e = list_next(e)) {
-    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    fdt_entry = list_entry(e, struct fdt_entry, elem);
     if (fdt_entry->fd == fd) {
-      return fdt_entry->file;
+      return fdt_entry;
     }
   }
   return NULL;
 }
 
 // Removes and frees entry from fdt
-void remove_file(int fd) {
+void remove_fdt_entry(int fd) {
   struct process* cur_pcb = thread_current()->pcb;
   struct list_elem* e;
 

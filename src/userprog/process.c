@@ -410,18 +410,12 @@ void close_and_remove_all_files(void) {
 
   while (!list_empty(&cur_pcb->fdt)) {
     e = list_pop_front(&cur_pcb->fdt);
-<<<<<<< HEAD
-    struct fdt_entry* fdt_entry = list_entry(e, struct fdt_entry, elem);
+    fdt_entry = list_entry(e, struct fdt_entry, elem);
     if (fdt_entry->is_dir) {
       dir_close(fdt_entry->dir);
     }
     else {
-=======
-    fdt_entry = list_entry(e, struct fdt_entry, elem);
-
-    // lock_acquire(&fileop_lock);
->>>>>>> nathan
-    file_close(fdt_entry->file);
+      file_close(fdt_entry->file);
     }
     // lock_acquire(&fileop_lock);
     // lock_release(&fileop_lock);

@@ -31,5 +31,6 @@ bool get_is_dir(struct inode*);
 
 void cache_read(struct block*, block_sector_t, void*, off_t size, off_t offset);
 void cache_write(struct block*, block_sector_t, void*, off_t size, off_t offset);
+struct buffer_cache_entry* get_entry(block_sector_t);
 
 #endif /* filesys/inode.h */

@@ -4,11 +4,11 @@
 #include <string.h>
 #include "filesys/file.h"
 #include "filesys/free-map.h"
-
 #include "filesys/inode.h"
 #include "filesys/directory.h"
 #include "threads/thread.h"
 #include "userprog/process.h"
+#include "threads/malloc.h"
 
 /* Partition that contains the file system. */
 struct block* fs_device;
@@ -48,6 +48,9 @@ void filesys_done(void) { free_map_close(); buffer_cache_close(); }
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool filesys_create(const char* name, off_t initial_size) {
+  if (strlen(name) > NAME_MAX) {
+    return false;
+  }
   block_sector_t inode_sector = 0;
   bool is_dir = false;
   bool success;
@@ -71,9 +74,9 @@ bool filesys_create(const char* name, off_t initial_size) {
   //TODO Set created inode_disk is_dir = false
     // struct inode* inode = NULL;
     // bool x = dir_lookup(dir, file_name, &inode);
-    dir_close(dir);
-    free(dir_path);
-    free(file_name);
+  dir_close(dir);
+  free(dir_path);
+  free(file_name);
 
 
 
@@ -128,10 +131,10 @@ bool filesys_remove(const char* name) {
   char* file_name = (char *) malloc(NAME_MAX+1);
   get_file_from_path(name, &dir_path, &file_name);
   struct dir* dir = resolve_path(dir_path);
-    struct inode* inode = NULL;
-      if (dir != NULL){
-        dir_lookup(dir, file_name, &inode);
-      }
+  struct inode* inode = NULL;
+  if (dir != NULL) {
+    dir_lookup(dir, file_name, &inode);
+  }
   free(dir_path);
   if (inode!=NULL && get_is_dir(inode)) {
     //do checks
@@ -191,7 +194,7 @@ bool get_file_from_path(const char* path_ptr, char** dir_path, char** file_name)
     char* file = *file_name;
     char part[NAME_MAX + 1];
     if (path[0] == '/') {dir[0]='/';dir+=1;}
-    int success = get_next_part(part,&path);
+    int success = get_next_part(part, &path);
     char* slash = "/";
   
     while(path[0] != '\0' && success) {
@@ -229,15 +232,15 @@ struct dir* resolve_path(char* name) {
   while (get_next_part(part, &name)) {
     success = dir_lookup(curr_dir, part, &inode);
     if (success) {
-      // dir_close(curr_dir);
+      dir_close(curr_dir);
       curr_dir = dir_open(inode);
     }
     else {
-      // dir_close(curr_dir);
+      dir_close(curr_dir);
       return NULL;
     }
   }
-  // dir_open(curr_dir);
+
   return curr_dir;
   //Don't forget to free inode_disk
 }
@@ -311,25 +314,6 @@ bool filesys_chdir(const char* name) {
     free(dir_path);
     free(dir_name);
     success = true;
-  }
-  return success;
-}
-bool filesys_isdir(int fd) {
-    struct file* file = get_file(fd);
-    return get_is_dir(file_get_inode(file));
-}
-int filesys_inumber(int fd) {
-  struct file* file = get_file(fd);
-  struct inode* inode = file_get_inode(file);
-  return inode_get_inumber(inode);
-}
-
-bool filesys_readdir(int fd, char* name_buf) {
-  bool success = false;
-  struct dir* dir = get_file(fd);
-  struct inode* inode = file_get_inode(dir);
-  if (get_is_dir(inode)) { 
-    success = dir_readdir(dir, name_buf);
   }
   return success;
 }

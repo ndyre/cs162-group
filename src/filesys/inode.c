@@ -68,17 +68,6 @@ struct inode_disk* get_disk_inode(struct inode* inode) {
 bool get_is_dir(struct inode* inode) {
   return inode->is_dir;
 }
-// bool acquire_inode_lock(struct inode* inode) {
-//   lock_acquire(&inode->inode_lock);
-// }
-
-// bool release_inode_lock(struct inode* inode) {
-//   lock_release(&inode->inode_lock);
-// }
-
-// bool get_file_is_dir(struct file* file) {
-//   return file->inode->is_dir;
-// }
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -220,7 +209,14 @@ void cache_read(struct block* fs_device, block_sector_t sector, void* buffer_, o
 
     /* Check if dirty. */
     if (entry->dirty) {
+      /* Release global lock so we don't block */
+      lock_release(&buffer_cache_lock);
+      lock_acquire(&entry->entry_lock);
+  
       block_write(fs_device, entry->sector, entry->contents);
+
+      lock_release(&entry->entry_lock);
+      lock_acquire(&buffer_cache_lock);
     }
   } else {
     entry = free_entry;
@@ -228,12 +224,21 @@ void cache_read(struct block* fs_device, block_sector_t sector, void* buffer_, o
   }
 
   /* Read in sector from disk */
-  list_push_front(&buffer_cache, &entry->elem);
-  block_read(fs_device, sector, entry->contents);
   entry->sector = sector;
   entry->dirty = false;
   entry->in_use = true;
+
+  /* Release global lock acquire per entry lock */
+  lock_release(&buffer_cache_lock);
+  lock_acquire(&entry->entry_lock);
+
+  block_read(fs_device, sector, entry->contents);
+
+  lock_release(&entry->entry_lock);
+  lock_acquire(&buffer_cache_lock);
+
   memcpy(buffer, entry->contents + offset, size);
+  list_push_front(&buffer_cache, &entry->elem);
   
   lock_release(&buffer_cache_lock);
 }
@@ -281,7 +286,14 @@ void cache_write(struct block* fs_device, block_sector_t sector, void* buffer_, 
 
     /* Check if dirty. */
     if (entry->dirty) {
+      /* Release global lock so we don't block */
+      lock_release(&buffer_cache_lock);
+      lock_acquire(&entry->entry_lock);
+  
       block_write(fs_device, entry->sector, entry->contents);
+
+      lock_release(&entry->entry_lock);
+      lock_acquire(&buffer_cache_lock);
     }
   } else {
     entry = free_entry;
@@ -289,9 +301,16 @@ void cache_write(struct block* fs_device, block_sector_t sector, void* buffer_, 
   }
 
   /* Read in sector from disk */
-  list_push_front(&buffer_cache, &entry->elem);
   if (offset > 0 || size < BLOCK_SECTOR_SIZE) {
+    /* Release global lock so we don't block */
+    lock_release(&buffer_cache_lock);
+    lock_acquire(&entry->entry_lock);
+    
     block_read(fs_device, sector, entry->contents);
+
+    lock_release(&entry->entry_lock);
+    lock_acquire(&buffer_cache_lock);
+
   } else {
     memset(entry->contents, 0, BLOCK_SECTOR_SIZE);
   }
@@ -299,7 +318,17 @@ void cache_write(struct block* fs_device, block_sector_t sector, void* buffer_, 
   entry->dirty = false;
   entry->in_use = true;
   memcpy(entry->contents + offset, buffer, size);
+
+  /* Release global lock so we don't block */
+  lock_release(&buffer_cache_lock);
+  lock_acquire(&entry->entry_lock);
+
   block_write(fs_device, entry->sector, entry->contents);
+
+  lock_release(&entry->entry_lock);
+  lock_acquire(&buffer_cache_lock);
+  
+  list_push_front(&buffer_cache, &entry->elem);
   
   lock_release(&buffer_cache_lock);
 }
