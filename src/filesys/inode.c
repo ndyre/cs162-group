@@ -69,6 +69,11 @@ bool get_is_dir(struct inode* inode) {
   return inode->is_dir;
 }
 
+int get_open_count(struct inode* inode) {
+  return inode->open_cnt;
+}
+
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset

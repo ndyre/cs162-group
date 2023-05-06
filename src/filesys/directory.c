@@ -145,7 +145,6 @@ bool dir_add(struct dir* dir, const char* name, block_sector_t inode_sector, boo
   e.in_use = true;
   strlcpy(e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
-  //TODO: Set is_dir
   e.is_dir = is_dir;
   success = inode_write_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
 
@@ -193,6 +192,9 @@ done:
    contains no more entries. */
 bool dir_readdir(struct dir* dir, char name[NAME_MAX + 1]) {
   struct dir_entry e;
+  if (dir->pos == 0) {
+    dir->pos += (2*sizeof(e));
+  }
 
   while (inode_read_at(dir->inode, &e, sizeof e, dir->pos) == sizeof e) {
     dir->pos += sizeof e;

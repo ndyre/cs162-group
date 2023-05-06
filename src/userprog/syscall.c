@@ -264,14 +264,12 @@ int sys_open(const char* file) {
   struct inode* inode = file_get_inode(f);
   if (get_is_dir(inode)) {
     fdt_entry->is_dir = true;
-    // fdt_entry->file = NULL;
     fdt_entry->dir = f;
   }
   else {
     fdt_entry->file = f;
     fdt_entry->is_dir = false;
   }
-  
   if (fdt_entry->file == NULL && fdt_entry->dir==NULL) {
     return -1;
   }
