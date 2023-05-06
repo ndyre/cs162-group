@@ -205,3 +205,20 @@ bool dir_readdir(struct dir* dir, char name[NAME_MAX + 1]) {
   }
   return false;
 }
+
+/* Gets number of entries in INODE which must be a directory */
+int get_num_entries(struct inode* inode) {
+  struct dir_entry e;
+  int num_entries = 0;
+
+  ASSERT(get_is_dir(inode));
+
+  off_t pos = 2*sizeof(e);
+  while (inode_read_at(inode, &e, sizeof e, pos) == sizeof e) {
+    pos += sizeof(e);
+    if (e.in_use) {
+      num_entries++;
+    }
+  }
+  return num_entries;
+}

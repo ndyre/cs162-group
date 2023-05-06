@@ -50,16 +50,16 @@ pintos-test dir-rmdir
 pintos-test dir-over-file	
 pintos-test dir-mk-tree
 pintos-test dir-rm-cwd
-pintos-test dir-rm-parent	
 pintos-test dir-rm-root	
 pintos-test dir-rm-tree
+pintos-test dir-vine	
+pintos-test grow-dir-lg	
 
 
 Failing
-pintos-test dir-vine	
+pintos-test dir-rm-parent	
 pintos-test create-long	
 pintos-test syn-rw	
-pintos-test grow-dir-lg	
 pintos-test dir-empty-name-persistence	
 pintos-test dir-mk-tree-persistence	
 pintos-test dir-mkdir-persistence	

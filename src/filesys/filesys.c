@@ -124,7 +124,7 @@ bool filesys_remove(const char* name) {
   if (name[0] == '/' && strlen(name) == 1) {
     return false;
   }
-  bool success;
+  bool success = false;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* file_name = (char*)malloc(NAME_MAX + 1);
   get_file_from_path(name, &dir_path, &file_name);
@@ -132,28 +132,22 @@ bool filesys_remove(const char* name) {
   if (dir == NULL) {
     free(dir_path);
     free(file_name);
-    return false;
+    return success;
   }
 
   struct inode* inode = NULL;
-  if (dir != NULL) {
-    dir_lookup(dir, file_name, &inode);
-  }
+  dir_lookup(dir, file_name, &inode);
   if (inode != NULL) {
     if (get_is_dir(inode)) {
       struct inode* cwd_inode = dir_get_inode(thread_current()->pcb->cwd);
-      if (cwd_inode == inode || get_open_count(inode) > 1) {
-        free(file_name);
-        free(dir_path);
-        dir_close(dir);
-        inode_close(inode);
-        return false;
+      if (cwd_inode == inode || get_open_count(inode) > 1 || get_num_entries(inode)) {
+        goto done;
       }
     }
     success = dir_remove(dir, file_name);
   }
 
-
+done:
   free(file_name);
   free(dir_path);
   dir_close(dir);
@@ -282,9 +276,9 @@ bool filesys_mkdir(const char* name) {
   success = (dir != NULL && free_map_allocate(1, &inode_sector) &&
              inode_create(inode_sector, initial_size, is_dir) &&
              dir_add(dir, new_dir_name, inode_sector, is_dir));
-  if (!success && inode_sector != 0)
+  if (!success && inode_sector != 0) {
     free_map_release(inode_sector, 1);
-  else {
+  } else if (success) {
     //ADDING . and .. dir entries
     dir_create(inode_sector, 2);
     struct inode* inode = inode_open(inode_sector);
@@ -303,28 +297,43 @@ bool filesys_mkdir(const char* name) {
   return success;
 }
 bool filesys_chdir(const char* name) {
+  bool success = false;
   struct inode* inode = NULL;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* dir_name = (char*)malloc(NAME_MAX + 1);
   get_file_from_path(name, &dir_path, &dir_name);
   struct dir* dir = resolve_path(dir_path);
   if (dir == NULL) {
-    free(dir_path);
-    free(dir_name);
-    return false;
+    goto done;
   }
 
-  bool success = false;
   if (strlen(dir_name) == 0) {
     inode = dir_get_inode(dir);
-  } else if (dir != NULL) {
+  } else {
     dir_lookup(dir, dir_name, &inode);
   }
+
+  struct dir* prev_cwd = thread_current()->pcb->cwd;
   if (inode != NULL && get_is_dir(inode)) {
-    dir_close(thread_current()->pcb->cwd);
+    /* Close previous directory*/
+    if (prev_cwd != dir) {
+      dir_close(prev_cwd);
+    } else {
+      /* dir will get freed when dir_close is called */
+      inode_close(dir_get_inode(prev_cwd));
+    }
+    /* Open new directory. */
     thread_current()->pcb->cwd = dir_open(inode);
     success = true;
+  } else {
+    goto done;
   }
+
+  if (dir_get_inode(dir) != inode || prev_cwd == dir) {
+    dir_close(dir);
+  }
+
+done:
   free(dir_path);
   free(dir_name);
   return success;
