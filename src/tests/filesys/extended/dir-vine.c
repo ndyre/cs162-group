@@ -59,9 +59,6 @@ void test_main(void) {
     close(fd);
 
     /* Descend into directory. */
-    if (i == 760) {
-      msg("hi");
-    }
     CHECK(chdir(dir_name), "chdir \"%s\"", dir_name);
   }
   CHECK(i > 200, "created files and directories only to level %d", i);
