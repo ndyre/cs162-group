@@ -61,17 +61,11 @@ struct inode_disk* get_disk_inode(struct inode* inode) {
 bool get_is_dir(struct inode* inode) {
   return inode->is_dir;
 }
-// bool acquire_inode_lock(struct inode* inode) {
-//   lock_acquire(&inode->inode_lock);
-// }
 
-// bool release_inode_lock(struct inode* inode) {
-//   lock_release(&inode->inode_lock);
-// }
+int get_open_count(struct inode* inode) {
+  return inode->open_cnt;
+}
 
-// bool get_file_is_dir(struct file* file) {
-//   return file->inode->is_dir;
-// }
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -298,7 +292,6 @@ struct inode* inode_open(block_sector_t sector) {
   struct inode_disk* id = get_disk_inode(inode);
   inode->is_dir = id->is_dir;
   free(id);
-  //
   return inode;
 }
 
