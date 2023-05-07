@@ -693,12 +693,10 @@ bool inode_resize(struct inode_disk* id, off_t size) {
   for (int i = 0; i < BLOCK_POINTERS_PER_SECTOR; i++) {
     /* Check if any more indirect pointers in the double indirect block are needed. */
     if (size <= (INODE_DIRECT + BLOCK_POINTERS_PER_SECTOR + (BLOCK_POINTERS_PER_SECTOR * i)) * BLOCK_SECTOR_SIZE && double_indirect_block[i] == 0) {
-      free(indirect_block);
-      free(double_indirect_block);
-      id->length = size;
-      return true;
+      break;
     }
 
+    memset(indirect_block, 0, BLOCK_SECTOR_SIZE);
     if (double_indirect_block[i] == 0) {
       /* Allocate indirect block. */
       if (!free_map_allocate(1, &double_indirect_block[i])) {
