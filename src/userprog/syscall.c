@@ -96,7 +96,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         break;
     }
   } else if (args[0] >= 4 && args[0] < 13) {
-    // lock_acquire(&fileop_lock);
     switch (args[0]) {
       case SYS_CREATE:
         CHECK_STACK_PTRS2(args);
@@ -140,7 +139,6 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         sys_close(args[1]);
         break;
     }
-    // lock_release(&fileop_lock);
   } else {
     switch (args[0]) {
       case SYS_PRACTICE:
@@ -167,9 +165,11 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         f->eax = sys_readdir(args[1], args[2]);
         break;
       case SYS_ISDIR:
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_isdir(args[1]);
         break;
       case SYS_INUMBER:
+        CHECK_STACK_PTRS1(args);
         f->eax = sys_inumber(args[1]);
         break;
     }

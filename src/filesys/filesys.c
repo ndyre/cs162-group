@@ -56,6 +56,9 @@ bool filesys_create(const char* name, off_t initial_size) {
   bool success;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* file_name = (char*)malloc(NAME_MAX + 1);
+  if (dir_path == NULL || file_name == NULL) {
+    return false;
+  }
 
   if (!get_file_from_path(name, &dir_path, &file_name)) {
     free(dir_path);
@@ -83,14 +86,18 @@ bool filesys_create(const char* name, off_t initial_size) {
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 struct file* filesys_open(const char* name) {
+  struct dir* cwd = thread_current()->pcb->cwd;
   if (strlen(name) == 0) {
     return NULL;
   }
 
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* file_name = (char*)malloc(NAME_MAX + 1);
+  if (dir_path == NULL || file_name == NULL) {
+    return NULL;
+  }
+  
   get_file_from_path(name, &dir_path, &file_name);
-
   struct dir* dir = resolve_path(dir_path);
   if (dir == NULL) {
     free(dir_path);
@@ -127,6 +134,10 @@ bool filesys_remove(const char* name) {
   bool success = false;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* file_name = (char*)malloc(NAME_MAX + 1);
+  if (dir_path == NULL || file_name == NULL) {
+    return false;
+  }
+  
   get_file_from_path(name, &dir_path, &file_name);
   struct dir* dir = resolve_path(dir_path);
   if (dir == NULL) {
@@ -260,17 +271,17 @@ bool filesys_mkdir(const char* name) {
   bool is_dir = true;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* new_dir_name = (char*)malloc(NAME_MAX + 1);
+  if (dir_path == NULL || new_dir_name == NULL) {
+    return false;
+  }
+  
   success = get_file_from_path(name, &dir_path, &new_dir_name);
   if (!success) {
-    free(dir_path);
-    free(new_dir_name);
-    return success;
+    goto done;
   }
   struct dir* dir = resolve_path(dir_path);
   if (dir == NULL) {
-    free(dir_path);
-    free(new_dir_name);
-    return false;
+    goto done;
   }
 
   success = (dir != NULL && free_map_allocate(1, &inode_sector) &&
@@ -291,6 +302,8 @@ bool filesys_mkdir(const char* name) {
     dir_close(new_dir);
   }
   dir_close(dir);
+
+done:  
   free(dir_path);
   free(new_dir_name);
 
@@ -301,6 +314,10 @@ bool filesys_chdir(const char* name) {
   struct inode* inode = NULL;
   char* dir_path = (char*)malloc(strlen(name) + 1);
   char* dir_name = (char*)malloc(NAME_MAX + 1);
+  if (dir_path == NULL || dir_name == NULL) {
+    return false;
+  }
+  
   get_file_from_path(name, &dir_path, &dir_name);
   struct dir* dir = resolve_path(dir_path);
   if (dir == NULL) {
