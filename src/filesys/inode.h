@@ -28,7 +28,7 @@ struct inode_disk* get_disk_inode(struct inode* inode);
 bool get_is_dir(struct inode*);
 int get_open_count(struct inode* inode);
 
-void cache_read(struct block*, block_sector_t, void*, off_t size, off_t offset);
+void* cache_read(struct block*, block_sector_t);
 void cache_write(struct block*, block_sector_t, void*, off_t size, off_t offset);
 struct buffer_cache_entry* get_entry(block_sector_t);
 
