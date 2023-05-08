@@ -54,9 +54,6 @@ pintos-test dir-rm-root
 pintos-test dir-rm-tree
 pintos-test dir-vine	
 pintos-test grow-dir-lg	
-
-
-Failing
 pintos-test dir-rm-parent	
 pintos-test create-long	
 pintos-test syn-rw	

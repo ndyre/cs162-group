@@ -13,6 +13,7 @@ struct inode;
 void inode_init(void);
 void buffer_cache_init(void);
 void buffer_cache_close(void);
+void buffer_cache_flush(void);
 bool inode_create(block_sector_t, off_t, bool is_dir);
 struct inode* inode_open(block_sector_t);
 struct inode* inode_reopen(struct inode*);
@@ -31,5 +32,7 @@ int get_open_count(struct inode* inode);
 void* cache_read(struct block*, block_sector_t);
 void cache_write(struct block*, block_sector_t, void*, off_t size, off_t offset);
 struct buffer_cache_entry* get_entry(block_sector_t);
+
+int get_cache_hits(void);
 
 #endif /* filesys/inode.h */

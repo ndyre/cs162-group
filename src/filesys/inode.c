@@ -15,6 +15,8 @@
 #define BLOCK_POINTERS_PER_SECTOR 128
 #define BUFFER_CACHE_SIZE 64
 
+static int num_hits;
+
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
 static inline size_t bytes_to_sectors(off_t size) { return DIV_ROUND_UP(size, BLOCK_SECTOR_SIZE); }
@@ -135,10 +137,12 @@ void buffer_cache_init(void) {
     if (entry == NULL) {
       PANIC("failed creating buffer cache");
     }
+    
     entry->in_use = false;
     entry->dirty = false;
     lock_init(&entry->entry_lock);
     list_push_back(&buffer_cache, &entry->elem);
+    num_hits = 0;
   }
 }
 
@@ -154,6 +158,26 @@ void buffer_cache_close(void) {
     }
     free(entry);
   }
+  lock_release(&buffer_cache_lock);
+}
+
+/* Flushes buffer cache, writing dirty entries back to disk */
+void buffer_cache_flush(void) {
+  struct list_elem* e;
+  struct buffer_cache_entry* entry;
+
+  lock_acquire(&buffer_cache_lock);
+  for (e = list_begin(&buffer_cache); e != list_end(&buffer_cache); e = list_next(e)) {
+    entry = list_entry(e, struct buffer_cache_entry, elem);
+    /* Reset entry */
+    if (entry->dirty) {
+      block_write(fs_device, entry->sector, entry->contents);
+    }
+    entry->in_use = false;
+    entry->dirty = false;
+  }
+  num_hits = 0;
+  lock_release(&buffer_cache_lock);
 }
 
 /* Reads SIZE bytes from the buffer cache at SECTOR starting at 
@@ -174,8 +198,11 @@ void* cache_read(struct block* fs_device, block_sector_t sector) {
         list_remove(e);
         list_push_front(&buffer_cache, &entry->elem);
 
+        num_hits += 1;
+        
         /* Release lock */
         lock_release(&buffer_cache_lock);
+
         return entry->contents;
       }
     } else {
@@ -742,4 +769,8 @@ void inode_allow_write(struct inode* inode) {
 off_t inode_length(const struct inode* inode) {
   struct inode_disk* id = get_disk_inode(inode);
   return id->length;
+}
+
+int get_cache_hits(void) {
+  return num_hits;
 }

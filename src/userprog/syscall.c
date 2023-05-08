@@ -48,6 +48,8 @@ bool sys_mkdir(const char* name);
 bool sys_readdir(int fd, char* name); 
 bool sys_isdir(int fd);
 int sys_inumber(int fd);
+int sys_num_hits(void);
+void sys_reset_cache(void);
 
 /* HELPER FUNCTIONS */
 
@@ -172,8 +174,21 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
         CHECK_STACK_PTRS1(args);
         f->eax = sys_inumber(args[1]);
         break;
+      case SYS_RESET_CACHE:
+        sys_reset_cache();
+        break;
+      case SYS_NUM_HITS:
+        f->eax = sys_num_hits();
+        break;
     }
   }
+}
+
+int sys_num_hits(void) {
+  return get_cache_hits();
+} 
+void sys_reset_cache(void) {
+  buffer_cache_flush();
 }
 
 bool sys_mkdir(const char* name) {
