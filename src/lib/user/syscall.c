@@ -64,6 +64,10 @@
     retval;                                                                                        \
   })
 
+int num_hits(void) {return syscall0(SYS_NUM_HITS);}
+
+void reset_cache(void) {syscall0(SYS_RESET_CACHE);}
+
 int practice(int i) { return syscall1(SYS_PRACTICE, i); }
 
 void halt(void) {
