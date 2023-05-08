@@ -15,6 +15,8 @@
 #define BLOCK_POINTERS_PER_SECTOR 128
 #define BUFFER_CACHE_SIZE 64
 
+static int num_hits;
+
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
 static inline size_t bytes_to_sectors(off_t size) { return DIV_ROUND_UP(size, BLOCK_SECTOR_SIZE); }
@@ -149,10 +151,12 @@ void buffer_cache_init(void) {
     if (entry == NULL) {
       PANIC("failed creating buffer cache");
     }
+    
     entry->in_use = false;
     entry->dirty = false;
     lock_init(&entry->entry_lock);
     list_push_back(&buffer_cache, &entry->elem);
+    num_hits = 0;
   }
 }
 
@@ -194,6 +198,7 @@ void cache_read(struct block* fs_device, block_sector_t sector, void* buffer_, o
 
         /* Release lock */
         lock_release(&buffer_cache_lock);
+        num_hits += 1;
         return;
       }
     } else {
@@ -733,4 +738,8 @@ off_t inode_length(const struct inode* inode) {
   struct inode_disk id;
   cache_read(fs_device, inode->sector, &id, BLOCK_SECTOR_SIZE, 0);
   return id.length;
+}
+
+int filesys_num_hits(void) {
+  return num_hits;
 }
