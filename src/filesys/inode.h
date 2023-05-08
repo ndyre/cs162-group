@@ -32,4 +32,6 @@ void cache_read(struct block*, block_sector_t, void*, off_t size, off_t offset);
 void cache_write(struct block*, block_sector_t, void*, off_t size, off_t offset);
 struct buffer_cache_entry* get_entry(block_sector_t);
 
+int filesys_num_hits(void);
+
 #endif /* filesys/inode.h */
