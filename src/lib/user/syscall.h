@@ -64,5 +64,6 @@ int inumber(int fd);
 
 int num_hits(void);
 void reset_cache(void);
+int device_writes(void);
 
 #endif /* lib/user/syscall.h */

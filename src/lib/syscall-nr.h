@@ -42,7 +42,8 @@ enum {
   SYS_INUMBER,  /* Returns the inode number for a fd. */
 
   SYS_RESET_CACHE,  /* Closes buffer cache, then reinitalizes it. */
-  SYS_NUM_HITS /*Returns number of hits in the buffer cache*/
+  SYS_NUM_HITS,     /* Returns number of hits in the buffer cache*/
+  SYS_DEVICE_WRITES   /* Returns the write count of the block device */
 };
 
 #endif /* lib/syscall-nr.h */

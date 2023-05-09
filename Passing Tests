@@ -31,7 +31,6 @@ pintos-test write-stdin
 pintos-test write-bad-fd	
 pintos-test tell-bad-fd	
 pintos-test tell-normal	
-
 pintos-test grow-create	
 pintos-test grow-file-size	
 pintos-test grow-root-lg	
@@ -41,7 +40,6 @@ pintos-test grow-seq-sm
 pintos-test grow-sparse	
 pintos-test grow-tell	
 pintos-test grow-two-files	
-
 pintos-test dir-empty-name	
 pintos-test dir-under-file	
 pintos-test dir-open	

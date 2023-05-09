@@ -64,6 +64,8 @@
     retval;                                                                                        \
   })
 
+int device_writes(void) {return syscall0(SYS_DEVICE_WRITES);}
+
 int num_hits(void) {return syscall0(SYS_NUM_HITS);}
 
 void reset_cache(void) {syscall0(SYS_RESET_CACHE);}

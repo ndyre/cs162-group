@@ -23,6 +23,7 @@ bool filesys_chdir(const char* path);
 bool filesys_readdir(int fd, char* name_buf);
 bool filesys_isdir(int fd);
 int filesys_inumber(int fd);
+int filesys_get_device_writes(void);
 
 
 #endif /* filesys/filesys.h */

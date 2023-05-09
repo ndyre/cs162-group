@@ -180,6 +180,9 @@ static void syscall_handler(struct intr_frame* f UNUSED) {
       case SYS_NUM_HITS:
         f->eax = sys_num_hits();
         break;
+      case SYS_DEVICE_WRITES:
+        f->eax = sys_device_writes();
+        break;
     }
   }
 }
@@ -189,6 +192,10 @@ int sys_num_hits(void) {
 } 
 void sys_reset_cache(void) {
   buffer_cache_flush();
+}
+
+int sys_device_writes(void) {
+  return filesys_get_device_writes();
 }
 
 bool sys_mkdir(const char* name) {

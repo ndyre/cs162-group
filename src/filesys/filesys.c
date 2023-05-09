@@ -355,3 +355,7 @@ done:
   free(dir_name);
   return success;
 }
+
+int filesys_get_device_writes(void) {
+  return get_device_writes(fs_device);
+}
